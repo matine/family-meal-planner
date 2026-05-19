@@ -124,18 +124,21 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          label: string | null
           meal_type: string
           recipe_id: string | null
         }
         Insert: {
           created_at?: string
           id?: string
+          label?: string | null
           meal_type: string
           recipe_id?: string | null
         }
         Update: {
           created_at?: string
           id?: string
+          label?: string | null
           meal_type?: string
           recipe_id?: string | null
         }

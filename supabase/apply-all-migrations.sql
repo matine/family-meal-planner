@@ -222,3 +222,15 @@ CREATE INDEX ingredient_line_cache_expires_idx ON public.ingredient_line_cache (
 ALTER TABLE public.recipe_import_cache ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ingredient_line_cache ENABLE ROW LEVEL SECURITY;
 
+-- === 20260519120000_meal_plan_quick_label.sql ===
+
+ALTER TABLE public.meal_plan
+  ADD COLUMN label TEXT;
+
+ALTER TABLE public.meal_plan
+  ADD CONSTRAINT meal_plan_recipe_or_label_check
+  CHECK (
+    recipe_id IS NOT NULL
+    OR (label IS NOT NULL AND length(trim(label)) > 0)
+  );
+
