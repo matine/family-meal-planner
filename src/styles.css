@@ -1,0 +1,144 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-basket: var(--basket);
+  --color-basket-foreground: var(--basket-foreground);
+  --color-basket-subtle: var(--basket-subtle);
+  --color-basket-solid: var(--basket-solid);
+  --color-basket-solid-foreground: var(--basket-solid-foreground);
+  --color-warm: var(--warm);
+}
+
+:root {
+  --radius: 0.85rem;
+
+  /* Warm kitchen palette */
+  --background: oklch(0.985 0.012 85);
+  --foreground: oklch(0.24 0.04 50);
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.24 0.04 50);
+
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.24 0.04 50);
+
+  /* Tomato/terracotta primary */
+  --primary: oklch(0.62 0.17 32);
+  --primary-foreground: oklch(0.99 0.01 80);
+
+  /* Muted terracotta surfaces (hovers, secondary buttons, tags) */
+  --secondary: oklch(0.945 0.022 42);
+  --secondary-foreground: oklch(0.4 0.055 38);
+
+  --muted: oklch(0.95 0.015 80);
+  --muted-foreground: oklch(0.5 0.03 60);
+
+  --accent: oklch(0.93 0.03 40);
+  --accent-foreground: oklch(0.38 0.06 38);
+
+  --destructive: oklch(0.58 0.22 25);
+  --destructive-foreground: oklch(0.99 0.01 80);
+
+  --success: oklch(0.62 0.15 150);
+  --success-foreground: oklch(0.99 0.01 80);
+
+  /* Shopping basket / on-list */
+  --basket: oklch(0.74 0.13 62.73);
+  --basket-foreground: oklch(0.74 0.15 59.2);
+  --basket-subtle: color-mix(in oklab, oklch(0.74 0.13 62.73) 15%, transparent);
+  --basket-solid: var(--basket-foreground);
+  --basket-solid-foreground: oklch(0.99 0.01 80);
+
+  --warm: oklch(0.96 0.04 75);
+
+  --border: oklch(0.9 0.02 70);
+  --input: oklch(0.92 0.02 70);
+  --ring: oklch(0.62 0.17 32);
+
+  --gradient-warm: linear-gradient(135deg, oklch(0.97 0.04 75), oklch(0.94 0.05 60));
+  --gradient-primary: linear-gradient(135deg, oklch(0.68 0.16 35), oklch(0.58 0.18 28));
+  --shadow-soft: 0 4px 20px -8px oklch(0.5 0.1 40 / 0.15);
+  --shadow-card: 0 2px 12px -4px oklch(0.5 0.05 50 / 0.08);
+}
+
+.dark {
+  --background: oklch(0.18 0.02 50);
+  --foreground: oklch(0.96 0.01 80);
+  --card: oklch(0.22 0.025 50);
+  --card-foreground: oklch(0.96 0.01 80);
+  --popover: oklch(0.22 0.025 50);
+  --popover-foreground: oklch(0.96 0.01 80);
+  --primary: oklch(0.68 0.17 32);
+  --primary-foreground: oklch(0.15 0.02 50);
+  --secondary: oklch(0.28 0.025 40);
+  --secondary-foreground: oklch(0.95 0.015 45);
+  --muted: oklch(0.26 0.02 50);
+  --muted-foreground: oklch(0.7 0.02 70);
+  --accent: oklch(0.32 0.035 40);
+  --accent-foreground: oklch(0.96 0.01 80);
+  --destructive: oklch(0.6 0.2 25);
+  --destructive-foreground: oklch(0.99 0.01 80);
+  --success: oklch(0.65 0.15 150);
+  --success-foreground: oklch(0.15 0.02 50);
+  --basket: oklch(0.74 0.13 62.73);
+  --basket-foreground: oklch(0.74 0.15 59.2);
+  --basket-subtle: color-mix(in oklab, oklch(0.74 0.13 62.73) 15%, transparent);
+  --basket-solid: var(--basket-foreground);
+  --basket-solid-foreground: oklch(0.99 0.01 80);
+  --warm: oklch(0.25 0.03 60);
+  --border: oklch(0.3 0.02 50);
+  --input: oklch(0.3 0.02 50);
+  --ring: oklch(0.68 0.17 32);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  /* iOS Safari zooms focused fields when font-size < 16px */
+  @media (max-width: 767px) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not(
+        [type="hidden"]
+      ):not([type="button"]):not([type="submit"]):not([type="reset"]),
+    textarea,
+    select {
+      font-size: 1rem !important;
+    }
+  }
+}

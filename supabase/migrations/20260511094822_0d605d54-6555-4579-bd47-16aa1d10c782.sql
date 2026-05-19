@@ -1,0 +1,1 @@
+ALTER TABLE public.canonical_ingredients ADD COLUMN IF NOT EXISTS last_category text;
