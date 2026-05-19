@@ -1,17 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   BookOpen,
   CalendarCheck,
   CalendarPlus,
-  Carrot,
   Plus,
-  Trash2,
   Sparkles,
   Link as LinkIcon,
   Image as ImageIcon,
   Type,
-  X,
   Loader2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,8 +19,16 @@ import {
   type Recipe,
   type RecipeIngredient,
 } from "@/hooks/useTable";
-import { ingredientCanonicalIds, isOptionalIngredient } from "@/lib/recipe-ingredient";
-import { cn } from "@/lib/utils";
+import { RecipeFilterBar } from "@/components/RecipeFilterBar";
+import { RecipeTagBadges } from "@/components/RecipeTagBadges";
+import { RecipeTagPicker } from "@/components/RecipeTagPicker";
+import {
+  getRecipePantryStatus,
+  parseRecipeTags,
+  recipeMatchesInPantryFilter,
+  recipeMatchesTagFilter,
+  type RecipeTag,
+} from "@/lib/recipe-tags";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -89,6 +94,8 @@ function RecipesPage() {
   const { rows: planRows, refresh: refreshPlan } = useTable<MealPlanRow>("meal_plan");
   const { rows: pantry } = useTable<Ingredient>("ingredients");
   const [open, setOpen] = useState(false);
+  const [tagFilters, setTagFilters] = useState<RecipeTag[]>([]);
+  const [inPantryFilter, setInPantryFilter] = useState(false);
 
   // Quick lookup of which recipes are already in the planner (any meal type).
   const plannedRecipeIds = new Set(
@@ -97,9 +104,21 @@ function RecipesPage() {
 
   // Set of canonical ingredient ids the user has in their pantry, used to
   // compute "have X of Y" per recipe (same matching rule as the detail page).
-  const pantryCanonicalIds = new Set(
-    pantry.map((p) => p.canonical_id).filter((id): id is string => !!id),
+  const pantryCanonicalIds = useMemo(
+    () => new Set(pantry.map((p) => p.canonical_id).filter((id): id is string => !!id)),
+    [pantry],
   );
+
+  const filteredRecipes = useMemo(() => {
+    return recipes.filter((r) => {
+      const tags = parseRecipeTags(r.tags);
+      if (!recipeMatchesTagFilter(tags, tagFilters)) return false;
+      const pantryStatus = getRecipePantryStatus(r, pantryCanonicalIds);
+      return recipeMatchesInPantryFilter(pantryStatus, inPantryFilter);
+    });
+  }, [recipes, tagFilters, inPantryFilter, pantryCanonicalIds]);
+
+  const filtersActive = tagFilters.length > 0 || inPantryFilter;
 
   const handleSaved = () => {
     refresh();
@@ -127,6 +146,29 @@ function RecipesPage() {
         </Dialog>
       </header>
 
+      {recipes.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <RecipeFilterBar
+            tagFilters={tagFilters}
+            inPantryFilter={inPantryFilter}
+            onTagFiltersChange={setTagFilters}
+            onInPantryFilterChange={setInPantryFilter}
+          />
+          {filtersActive && (
+            <button
+              type="button"
+              onClick={() => {
+                setTagFilters([]);
+                setInPantryFilter(false);
+              }}
+              className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      )}
+
       {recipes.length === 0 ? (
         <div className="rounded-2xl border border-dashed bg-[var(--gradient-warm)] p-10 text-center">
           <BookOpen className="mx-auto mb-3 h-10 w-10 text-primary" />
@@ -135,20 +177,21 @@ function RecipesPage() {
             Snap a cookbook page, paste a link, or type one in.
           </p>
         </div>
+      ) : filteredRecipes.length === 0 ? (
+        <div className="rounded-2xl border border-dashed bg-muted/30 p-10 text-center">
+          <p className="font-medium">No recipes match these filters</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Try clearing filters or choosing different tags.
+          </p>
+        </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
-          {recipes.map((r) => {
+          {filteredRecipes.map((r) => {
             const inPlanner = plannedRecipeIds.has(r.id);
             const recipeServes = getRecipeServes(r);
-            const recipeIngs = stripRecipeMetaIngredient(
-              (r.ingredients as RecipeIngredient[] | null) ?? [],
-            );
-            const requiredIngs = recipeIngs.filter((i) => !isOptionalIngredient(i));
-            const totalIngs = requiredIngs.length;
-            const haveIngs = requiredIngs.filter((i) =>
-              ingredientCanonicalIds(i).some((id) => pantryCanonicalIds.has(id)),
-            ).length;
-            const haveAll = totalIngs > 0 && haveIngs === totalIngs;
+            const recipeTags = parseRecipeTags(r.tags);
+            const pantryStatus = getRecipePantryStatus(r, pantryCanonicalIds);
+            const { totalRequired } = pantryStatus;
             return (
               <Link
                 key={r.id}
@@ -173,24 +216,14 @@ function RecipesPage() {
                     {recipeServes && (
                       <p className="text-xs text-muted-foreground">Serves {recipeServes}</p>
                     )}
-                    {recipeIngs.length === 0 ? (
+                    {totalRequired === 0 && recipeTags.length === 0 ? (
                       <p className="mt-1 text-xs text-muted-foreground">No ingredients</p>
                     ) : (
-                      totalIngs > 0 && (
-                        <span
-                          className={cn(
-                            "mt-1.5 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium tabular-nums",
-                            haveAll
-                              ? "border-success/40 bg-success/15 text-success"
-                              : "border-border bg-muted/60 text-muted-foreground",
-                          )}
-                          title={`${haveIngs} of ${totalIngs} required ingredients in pantry`}
-                        >
-                          <Carrot className="h-3 w-3 shrink-0" aria-hidden />
-                          {haveIngs}/{totalIngs}
-                          <span className="sr-only"> in pantry</span>
-                        </span>
-                      )
+                      <RecipeTagBadges
+                        tags={recipeTags}
+                        pantry={pantryStatus}
+                        className="mt-1.5"
+                      />
                     )}
                   </div>
                 </div>
@@ -307,9 +340,11 @@ async function saveRecipe(r: {
   serves?: string;
   source_url?: string;
   image_url?: string;
+  tags?: RecipeTag[];
 }) {
   const serves = r.serves?.trim() || null;
   const ingredients = stripRecipeMetaIngredient(r.ingredients);
+  const tags = r.tags ?? [];
   const insertPayload = {
     title: r.title,
     ingredients: ingredients as any,
@@ -317,6 +352,7 @@ async function saveRecipe(r: {
     serves,
     source_url: r.source_url ?? null,
     image_url: r.image_url ?? null,
+    tags,
   };
   const { error } = await supabase.from("recipes").insert(insertPayload);
   if (isRecipesServesColumnError(error)) {
@@ -331,6 +367,7 @@ async function saveRecipe(r: {
       method: r.method,
       source_url: r.source_url ?? null,
       image_url: r.image_url ?? null,
+      tags,
     });
     if (retryError) throw new Error(retryError.message);
     return;
@@ -345,6 +382,7 @@ function ManualForm({ onDone }: { onDone: () => void }) {
   const [serves, setServes] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
   const [method, setMethod] = useState("");
+  const [tags, setTags] = useState<RecipeTag[]>([]);
   const [editRows, setEditRows] = useState<IngredientResolutionRow[]>(() => [
     { key: crypto.randomUUID(), ingredient: { name: "" } },
   ]);
@@ -381,6 +419,7 @@ function ManualForm({ onDone }: { onDone: () => void }) {
         source_url: sourceUrl.trim() || undefined,
         method,
         ingredients: finalized,
+        tags,
       });
       toast.success("Recipe saved");
       onDone();
@@ -413,6 +452,7 @@ function ManualForm({ onDone }: { onDone: () => void }) {
         onChange={(e) => setSourceUrl(e.target.value)}
         disabled={saving}
       />
+      <RecipeTagPicker value={tags} onChange={setTags} disabled={saving} />
       <div className="space-y-2">
         <p className="text-sm font-medium">Ingredients</p>
         <IngredientResolutionEditor

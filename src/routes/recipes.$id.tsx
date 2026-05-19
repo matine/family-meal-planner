@@ -62,12 +62,15 @@ import {
 import { cap } from "@/lib/text";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { RecipeTagBadges } from "@/components/RecipeTagBadges";
+import { RecipeTagPicker } from "@/components/RecipeTagPicker";
 import {
   getRecipeServes,
   isRecipesServesColumnError,
   stripRecipeMetaIngredient,
   withServesMetaIngredient,
 } from "@/lib/recipe-serves-fallback";
+import { parseRecipeTags, type RecipeTag } from "@/lib/recipe-tags";
 
 export const Route = createFileRoute("/recipes/$id")({
   component: RecipeDetailPage,
@@ -102,6 +105,7 @@ function RecipeDetailPage() {
   const [servesValue, setServesValue] = useState("");
   const [sourceUrlValue, setSourceUrlValue] = useState("");
   const [methodValue, setMethodValue] = useState("");
+  const [tagsValue, setTagsValue] = useState<RecipeTag[]>([]);
   const [editRows, setEditRows] = useState<IngredientResolutionRow[]>([]);
   const ingredientEditorRef = useRef<IngredientResolutionEditorHandle>(null);
   const [resolutionGate, setResolutionGate] = useState<IngredientResolutionGate>({
@@ -131,6 +135,7 @@ function RecipeDetailPage() {
     setServesValue(getRecipeServes(recipe) ?? "");
     setSourceUrlValue(recipe.source_url ?? "");
     setMethodValue(recipe.method ?? "");
+    setTagsValue(parseRecipeTags(recipe.tags));
   }, [recipe]);
 
   if (!recipe) {
@@ -152,6 +157,7 @@ function RecipeDetailPage() {
     setServesValue(getRecipeServes(recipe) ?? "");
     setSourceUrlValue(recipe.source_url ?? "");
     setMethodValue(recipe.method ?? "");
+    setTagsValue(parseRecipeTags(recipe.tags));
     setEditing(true);
   };
 
@@ -161,6 +167,7 @@ function RecipeDetailPage() {
     shopping.map((s) => s.canonical_id).filter(Boolean) as string[],
   );
   const recipeServes = getRecipeServes(recipe);
+  const recipeTags = parseRecipeTags(recipe.tags);
   const ingredients = stripRecipeMetaIngredient(
     (recipe.ingredients as RecipeIngredient[] | null) ?? [],
   );
@@ -274,6 +281,7 @@ function RecipeDetailPage() {
     setServesValue(getRecipeServes(recipe) ?? "");
     setSourceUrlValue(recipe.source_url ?? "");
     setMethodValue(recipe.method ?? "");
+    setTagsValue(parseRecipeTags(recipe.tags));
     setEditRows([]);
     setEditing(false);
   };
@@ -308,6 +316,7 @@ function RecipeDetailPage() {
         source_url: sourceUrl,
         method: methodValue,
         ingredients: ingredientsForSave as any,
+        tags: tagsValue,
       };
       let { error: updateError } = await supabase
         .from("recipes")
@@ -329,6 +338,7 @@ function RecipeDetailPage() {
             source_url: sourceUrl,
             method: methodValue,
             ingredients: withServesMetaIngredient(ingredientsForSave, serves) as any,
+            tags: tagsValue,
           })
           .eq("id", recipe.id);
         updateError = retryError;
@@ -355,6 +365,7 @@ function RecipeDetailPage() {
                 serves: servesSavedInMeta ? null : serves,
                 source_url: sourceUrl,
                 method: methodValue,
+                tags: tagsValue,
                 ingredients: (servesSavedInMeta
                   ? withServesMetaIngredient(ingredientsForSave, serves)
                   : ingredientsForSave) as any,
@@ -434,6 +445,7 @@ function RecipeDetailPage() {
                 placeholder="Source link (optional)"
                 disabled={saving}
               />
+              <RecipeTagPicker value={tagsValue} onChange={setTagsValue} disabled={saving} />
             </div>
           </div>
         ) : (
@@ -458,6 +470,7 @@ function RecipeDetailPage() {
                   </Button>
                 </div>
               )}
+              <RecipeTagBadges tags={recipeTags} className="mt-3" />
             </div>
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" className="gap-1.5" onClick={beginEdit}>
