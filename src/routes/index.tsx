@@ -1,9 +1,20 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Plus, Trash2, ShoppingBasket } from "lucide-react";
+import { Plus, Trash2, ShoppingBasket, CalendarCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useTable, type Ingredient, type ShoppingItem } from "@/hooks/useTable";
+import {
+  useTable,
+  type Ingredient,
+  type MealPlanRow,
+  type Recipe,
+  type ShoppingItem,
+} from "@/hooks/useTable";
 import { useCanonicals } from "@/hooks/useCanonicals";
+import {
+  buildPlannerIngredientIndex,
+  plannerRecipesForShoppingItem,
+  type PlannerRecipeRef,
+} from "@/lib/planner-ingredients";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -22,12 +33,19 @@ export const Route = createFileRoute("/")({
 function ShoppingPage() {
   const { rows, refresh } = useTable<ShoppingItem>("shopping_list");
   const { rows: pantryRows } = useTable<Ingredient>("ingredients");
+  const { rows: planRows } = useTable<MealPlanRow>("meal_plan");
+  const { rows: recipes } = useTable<Recipe>("recipes");
   const { rows: canonicals } = useCanonicals();
   const canonicalById = useMemo(() => {
     const m = new Map<string, string>();
     canonicals.forEach((c) => m.set(c.id, c.name));
     return m;
   }, [canonicals]);
+
+  const plannerIngredientIndex = useMemo(() => {
+    const recipesById = new Map(recipes.map((r) => [r.id, r]));
+    return buildPlannerIngredientIndex(planRows, recipesById);
+  }, [planRows, recipes]);
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
 
@@ -163,6 +181,7 @@ function ShoppingPage() {
                 key={it.id}
                 item={it}
                 displayName={displayName(it)}
+                plannerRecipes={plannerRecipesForShoppingItem(plannerIngredientIndex, it)}
                 onToggle={() => toggle(it)}
                 onRemove={() => remove(it.id)}
               />
@@ -188,11 +207,13 @@ function ShoppingPage() {
 function ShoppingRow({
   item,
   displayName,
+  plannerRecipes,
   onToggle,
   onRemove,
 }: {
   item: ShoppingItem;
   displayName: string;
+  plannerRecipes: PlannerRecipeRef[];
   onToggle: () => void;
   onRemove: () => void;
 }) {
@@ -252,6 +273,24 @@ function ShoppingRow({
             </button>
           )}
         </div>
+        {plannerRecipes.length > 0 && (
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-1 gap-y-0.5 text-xs text-muted-foreground">
+            <CalendarCheck className="h-3 w-3 shrink-0 text-primary/80" aria-hidden />
+            <span className="sr-only">In meal planner:</span>
+            {plannerRecipes.map((recipe, i) => (
+              <span key={recipe.id} className="inline-flex flex-wrap items-center gap-x-1">
+                {i > 0 && <span aria-hidden>·</span>}
+                <Link
+                  to="/recipes/$id"
+                  params={{ id: recipe.id }}
+                  className="font-medium text-primary hover:underline"
+                >
+                  {recipe.title}
+                </Link>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
       <button
         onClick={onRemove}
