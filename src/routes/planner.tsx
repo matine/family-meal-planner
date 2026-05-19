@@ -1,10 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Trash2, Sun, Sunset, Moon, Plus } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Trash2, Sun, Sunset, Moon, Plus, BookOpen, PenLine } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTable, type MealPlanRow, type Recipe } from "@/hooks/useTable";
-import { Input } from "@/components/ui/input";
+import { PlannerMealInput } from "@/components/PlannerMealInput";
 import { Button } from "@/components/ui/button";
+import type { RecipeLite } from "@/lib/recipe-suggest";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/planner")({
@@ -22,24 +23,18 @@ type MealType = (typeof MEALS)[number]["key"];
 
 function PlannerPage() {
   const { rows: plan, refresh } = useTable<MealPlanRow>("meal_plan");
-  const [recipes, setRecipes] = useState<Record<string, Recipe>>({});
+  const { rows: allRecipes } = useTable<Recipe>("recipes");
 
-  useEffect(() => {
-    const recipeIds = plan.map((p) => p.recipe_id).filter((id): id is string => !!id);
-    if (recipeIds.length === 0) {
-      setRecipes({});
-      return;
-    }
-    supabase
-      .from("recipes")
-      .select("*")
-      .in("id", recipeIds)
-      .then(({ data }) => {
-        const map: Record<string, Recipe> = {};
-        (data ?? []).forEach((r) => (map[r.id] = r as Recipe));
-        setRecipes(map);
-      });
-  }, [plan]);
+  const recipesById = useMemo(() => {
+    const map: Record<string, Recipe> = {};
+    allRecipes.forEach((r) => (map[r.id] = r));
+    return map;
+  }, [allRecipes]);
+
+  const recipeOptions: RecipeLite[] = useMemo(
+    () => allRecipes.map((r) => ({ id: r.id, title: r.title })),
+    [allRecipes],
+  );
 
   const remove = async (id: string) => {
     const { error } = await supabase.from("meal_plan").delete().eq("id", id);
@@ -63,7 +58,8 @@ function PlannerPage() {
               label={label}
               icon={Icon}
               items={items}
-              recipes={recipes}
+              recipes={recipesById}
+              recipeOptions={recipeOptions}
               onRemove={remove}
               onAdded={refresh}
             />
@@ -72,7 +68,7 @@ function PlannerPage() {
       </div>
 
       <div className="rounded-xl border border-dashed bg-[var(--gradient-warm)] p-4 text-center text-sm text-muted-foreground">
-        Add recipes from any recipe page, or type a quick note in each column — no recipe needed.
+        Search for a recipe or add a quick note in each column — no recipe needed for notes.
       </div>
     </div>
   );
@@ -84,6 +80,7 @@ function MealColumn({
   icon: Icon,
   items,
   recipes,
+  recipeOptions,
   onRemove,
   onAdded,
 }: {
@@ -92,6 +89,7 @@ function MealColumn({
   icon: typeof Sun;
   items: MealPlanRow[];
   recipes: Record<string, Recipe>;
+  recipeOptions: RecipeLite[];
   onRemove: (id: string) => void;
   onAdded: () => void;
 }) {
@@ -102,7 +100,6 @@ function MealColumn({
           <Icon className="h-4 w-4" />
         </span>
         <h2 className="font-semibold">{label}</h2>
-        <span className="ml-auto text-xs text-muted-foreground">{items.length}</span>
       </div>
       {items.length === 0 ? (
         <p className="rounded-lg bg-muted/50 px-3 py-4 text-center text-xs text-muted-foreground">
@@ -115,7 +112,7 @@ function MealColumn({
           ))}
         </ul>
       )}
-      <QuickMealAdd mealType={mealType} onAdded={onAdded} />
+      <PlannerMealAdd mealType={mealType} recipeOptions={recipeOptions} onAdded={onAdded} />
     </section>
   );
 }
@@ -133,20 +130,31 @@ function PlannerItem({
   const recipe = item.recipe_id ? recipes[item.recipe_id] : null;
 
   return (
-    <li className="group flex items-center justify-between rounded-lg border bg-background px-3 py-2">
-      {recipe ? (
-        <Link
-          to="/recipes/$id"
-          params={{ id: recipe.id }}
-          className="truncate text-sm font-medium hover:text-primary"
-        >
-          {recipe.title}
-        </Link>
-      ) : quickLabel ? (
-        <span className="truncate text-sm font-medium">{quickLabel}</span>
-      ) : (
-        <span className="text-sm text-muted-foreground">Recipe missing</span>
-      )}
+    <li className="group flex items-center justify-between gap-2 rounded-lg border bg-background px-3 py-2">
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        {recipe ? (
+          <>
+            <BookOpen
+              className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+              aria-hidden
+            />
+            <Link
+              to="/recipes/$id"
+              params={{ id: recipe.id }}
+              className="truncate text-sm font-medium hover:text-primary"
+            >
+              {recipe.title}
+            </Link>
+          </>
+        ) : quickLabel ? (
+          <>
+            <PenLine className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+            <span className="truncate text-sm font-medium">{quickLabel}</span>
+          </>
+        ) : (
+          <span className="text-sm text-muted-foreground">Recipe missing</span>
+        )}
+      </div>
       <button
         onClick={onRemove}
         aria-label="Remove from planner"
@@ -158,18 +166,23 @@ function PlannerItem({
   );
 }
 
-function QuickMealAdd({ mealType, onAdded }: { mealType: MealType; onAdded: () => void }) {
+function PlannerMealAdd({
+  mealType,
+  recipeOptions,
+  onAdded,
+}: {
+  mealType: MealType;
+  recipeOptions: RecipeLite[];
+  onAdded: () => void;
+}) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const add = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const label = text.trim();
-    if (!label) return;
+  const insert = async (payload: { recipe_id: string } | { label: string }) => {
     setBusy(true);
     const { error } = await supabase.from("meal_plan").insert({
       meal_type: mealType,
-      label,
+      ...payload,
     });
     setBusy(false);
     if (error) return toast.error(error.message);
@@ -178,24 +191,32 @@ function QuickMealAdd({ mealType, onAdded }: { mealType: MealType; onAdded: () =
   };
 
   return (
-    <form onSubmit={add} className="mt-3 flex gap-1.5">
-      <Input
+    <div className="mt-3 flex gap-1.5">
+      <PlannerMealInput
+        recipes={recipeOptions}
         value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="Quick add…"
-        className="h-8 text-sm"
+        onChange={setText}
         disabled={busy}
+        onPickRecipe={(r) => insert({ recipe_id: r.id })}
+        onQuickAdd={(label) => insert({ label })}
       />
       <Button
-        type="submit"
+        type="button"
         size="sm"
         variant="secondary"
         disabled={busy || !text.trim()}
         className="h-8 shrink-0 px-2.5"
         aria-label={`Add to ${mealType}`}
+        onClick={() => {
+          const q = text.trim();
+          if (!q) return;
+          const match = recipeOptions.find((r) => r.title.toLowerCase() === q.toLowerCase());
+          if (match) insert({ recipe_id: match.id });
+          else insert({ label: q });
+        }}
       >
         <Plus className="h-3.5 w-3.5" />
       </Button>
-    </form>
+    </div>
   );
 }
