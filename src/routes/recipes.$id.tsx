@@ -12,7 +12,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   useTable,
@@ -64,6 +64,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { RecipeDetailsFields } from "@/components/RecipeDetailsFields";
 import { RecipeFormField } from "@/components/RecipeFormField";
+import { RecipePageActions, RecipeStickyToolbar } from "@/components/RecipeStickyToolbar";
 import { RecipeTagBadges } from "@/components/RecipeTagBadges";
 import { parseMealTypes, type RecipeMealType } from "@/lib/recipe-meal-types";
 import {
@@ -82,9 +83,6 @@ import {
 export const Route = createFileRoute("/recipes/$id")({
   component: RecipeDetailPage,
 });
-
-/** Matches AppNav `h-14` (3.5rem). */
-const APP_NAV_STICKY_OFFSET_PX = 56;
 
 type MealType = "breakfast" | "lunch" | "dinner";
 const MEAL_TYPES: { key: MealType; label: string }[] = [
@@ -120,8 +118,6 @@ function RecipeDetailPage() {
   const [mealTypesValue, setMealTypesValue] = useState<RecipeMealType[]>([]);
   const [editRows, setEditRows] = useState<IngredientResolutionRow[]>([]);
   const ingredientEditorRef = useRef<IngredientResolutionEditorHandle>(null);
-  const editToolbarSentinelRef = useRef<HTMLDivElement>(null);
-  const [editToolbarPinned, setEditToolbarPinned] = useState(false);
   const [resolutionGate, setResolutionGate] = useState<IngredientResolutionGate>({
     allMatched: false,
     aiLoading: false,
@@ -142,26 +138,6 @@ function RecipeDetailPage() {
         setRecipe(data as Recipe | null);
       });
   }, [id]);
-
-  useLayoutEffect(() => {
-    if (!editing) {
-      setEditToolbarPinned(false);
-      return;
-    }
-    const sentinel = editToolbarSentinelRef.current;
-    if (!sentinel) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => setEditToolbarPinned(!entry.isIntersecting),
-      {
-        root: null,
-        rootMargin: `-${APP_NAV_STICKY_OFFSET_PX}px 0px 0px 0px`,
-        threshold: 0,
-      },
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [editing]);
 
   useEffect(() => {
     if (!recipe) return;
@@ -433,62 +409,27 @@ function RecipeDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2">
-        <Link
-          to="/recipes"
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back to recipes
-        </Link>
-        {editing ? (
-          <>
-            <div ref={editToolbarSentinelRef} className="h-px w-full shrink-0" aria-hidden />
-            {editToolbarPinned && <div className="h-11 shrink-0" aria-hidden />}
-            <div
-              className={cn(
-                editToolbarPinned &&
-                  "fixed inset-x-0 top-14 z-30 border-b border-border bg-background/95 shadow-sm backdrop-blur-md",
-              )}
-            >
-              <div
-                className={cn(
-                  "flex justify-end gap-2 py-2",
-                  editToolbarPinned && "mx-auto w-full max-w-5xl px-3",
-                )}
-                role="toolbar"
-                aria-label="Recipe edits"
-              >
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={cancelEdit}
-                  disabled={saving}
-                  aria-label="Cancel editing"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="icon"
-                  onClick={saveEdit}
-                  disabled={saving || !resolutionGate.allMatched}
-                  aria-label={saving ? "Saving…" : "Save changes"}
-                  title={
-                    !resolutionGate.allMatched
-                      ? "Map every ingredient to your library before saving."
-                      : undefined
-                  }
-                >
-                  {saving ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Check className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="flex flex-wrap justify-end gap-2">
+      <RecipePageActions
+        backLink={
+          <Link
+            to="/recipes"
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back to recipes
+          </Link>
+        }
+        toolbar={
+          editing ? (
+            <RecipeStickyToolbar
+              active
+              onCancel={cancelEdit}
+              onSave={saveEdit}
+              saving={saving}
+              saveDisabled={!resolutionGate.allMatched}
+              saveDisabledTitle="Map every ingredient to your library before saving."
+            />
+          ) : (
+            <div className="flex flex-wrap justify-end gap-2">
             <Button
               variant="outline"
               size="icon"
@@ -519,9 +460,10 @@ function RecipeDetailPage() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-          </div>
-        )}
-      </div>
+            </div>
+          )
+        }
+      />
 
       <header className="flex flex-col gap-4">
         {editing ? (
