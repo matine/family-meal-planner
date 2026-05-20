@@ -5,6 +5,7 @@ import {
   CalendarCheck,
   CalendarPlus,
   Plus,
+  Search,
   Sparkles,
   Link as LinkIcon,
   Image as ImageIcon,
@@ -31,6 +32,8 @@ import {
   type RecipeMealType,
 } from "@/lib/recipe-meal-types";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { recipeMatchesSearch } from "@/lib/recipe-search";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -82,6 +85,7 @@ function RecipesPage() {
   const [inPantryFilter, setInPantryFilter] = useState(false);
   const [cookTimeFilter, setCookTimeFilter] = useState<CookTimeFilterMax | null>(null);
   const [mealTypeFilters, setMealTypeFilters] = useState<RecipeMealType[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Quick lookup of which recipes are already in the planner (any meal type).
   const plannedRecipeIds = new Set(
@@ -97,6 +101,7 @@ function RecipesPage() {
 
   const filteredRecipes = useMemo(() => {
     return recipes.filter((r) => {
+      if (!recipeMatchesSearch(r, searchQuery)) return false;
       const tags = parseRecipeTags(r.tags);
       const mealTypes = parseMealTypes(r.meal_types);
       if (!recipeMatchesTagFilter(tags, tagFilters)) return false;
@@ -108,9 +113,19 @@ function RecipesPage() {
         cookTimeFilter != null ? [cookTimeFilter] : [],
       );
     });
-  }, [recipes, tagFilters, mealTypeFilters, inPantryFilter, cookTimeFilter, pantryCanonicalIds]);
+  }, [
+    recipes,
+    searchQuery,
+    tagFilters,
+    mealTypeFilters,
+    inPantryFilter,
+    cookTimeFilter,
+    pantryCanonicalIds,
+  ]);
 
+  const searchActive = searchQuery.trim().length > 0;
   const filtersActive =
+    searchActive ||
     tagFilters.length > 0 ||
     mealTypeFilters.length > 0 ||
     inPantryFilter ||
@@ -150,7 +165,22 @@ function RecipesPage() {
       </header>
 
       {recipes.length > 0 && (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <>
+          <div className="relative">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
+            <Input
+              type="search"
+              placeholder="Search recipes by title, ingredients, tags…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+              aria-label="Search recipes"
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <RecipeFilterBar
             tagFilters={tagFilters}
             inPantryFilter={inPantryFilter}
@@ -165,6 +195,7 @@ function RecipesPage() {
             <button
               type="button"
               onClick={() => {
+                setSearchQuery("");
                 setTagFilters([]);
                 setMealTypeFilters([]);
                 setInPantryFilter(false);
@@ -172,10 +203,11 @@ function RecipesPage() {
               }}
               className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
             >
-              Clear filters
+              Clear search and filters
             </button>
           )}
         </div>
+        </>
       )}
 
       {recipes.length === 0 ? (
@@ -188,9 +220,11 @@ function RecipesPage() {
         </div>
       ) : filteredRecipes.length === 0 ? (
         <div className="rounded-2xl border border-dashed bg-muted/30 p-10 text-center">
-          <p className="font-medium">No recipes match these filters</p>
+          <p className="font-medium">No recipes match</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Try clearing filters or choosing different tags.
+            {searchActive
+              ? "Try a different search term or clear search and filters."
+              : "Try clearing filters or choosing different tags."}
           </p>
         </div>
       ) : (
