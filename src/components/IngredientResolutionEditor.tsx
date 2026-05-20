@@ -13,12 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { IngredientPredictiveInput } from "@/components/IngredientPredictiveInput";
-import {
-  useTable,
-  type Ingredient,
-  type RecipeIngredient,
-  type ShoppingItem,
-} from "@/hooks/useTable";
+import type { RecipeIngredient } from "@/hooks/useTable";
 import { useCanonicals } from "@/hooks/useCanonicals";
 import { useAliases, rememberAlias } from "@/hooks/useAliases";
 import {
@@ -44,8 +39,6 @@ import { cap } from "@/lib/text";
 import { toast } from "sonner";
 import { IngredientConversionLine } from "@/components/IngredientConversionLine";
 import { IngredientInlineLineEdit } from "@/components/IngredientInlineLineEdit";
-import { AddCanonicalToShoppingButton } from "@/components/AddCanonicalToShoppingButton";
-
 export type IngredientResolutionRow = { key: string; ingredient: RecipeIngredient };
 
 type PantryMatch = { id: string; name: string };
@@ -104,12 +97,6 @@ export const IngredientResolutionEditor = forwardRef<
     loading: canonicalsLoading,
     refresh: refreshCanonicals,
   } = useCanonicals();
-  const { rows: shopping, refresh: refreshShopping } = useTable<ShoppingItem>("shopping_list");
-  const { rows: pantry } = useTable<Ingredient>("ingredients");
-  const pantryCanonicalIds = useMemo(
-    () => new Set(pantry.map((p) => p.canonical_id).filter(Boolean) as string[]),
-    [pantry],
-  );
   const autoSuggestRanForRef = useRef<string | null>(null);
   const { aliases, refresh: refreshAliases } = useAliases();
 
@@ -597,43 +584,24 @@ export const IngredientResolutionEditor = forwardRef<
 
               {res.matches.length > 0 && (
                 <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                  {res.matches.map((m) => {
-                    const inPantry = pantryCanonicalIds.has(m.id);
-                    const onShoppingList =
-                      !inPantry && shopping.some((s) => s.canonical_id === m.id);
-                    return (
-                      <Badge
-                        key={m.id}
-                        variant={onShoppingList ? "basket" : "muted"}
-                        className={cn(
-                          "max-w-full gap-0.5 pr-1 font-normal",
-                          inPantry &&
-                            "border-success/40 bg-success/15 text-success",
-                          onShoppingList &&
-                            "border-basket/40 bg-basket-subtle text-basket-foreground",
-                        )}
+                  {res.matches.map((m) => (
+                    <Badge
+                      key={m.id}
+                      variant="muted"
+                      className="max-w-full gap-0.5 pr-1 font-normal"
+                    >
+                      <span className="truncate">{cap(m.name)}</span>
+                      <button
+                        type="button"
+                        className="rounded p-0.5 hover:bg-muted-foreground/20"
+                        aria-label={`Remove ${m.name}`}
+                        onClick={() => removeMatch(r.key, r.rowIndex, m.id)}
+                        disabled={disabled}
                       >
-                        <span className="truncate">{cap(m.name)}</span>
-                        <AddCanonicalToShoppingButton
-                          canonicalId={m.id}
-                          name={m.name}
-                          shopping={shopping}
-                          inPantry={inPantry}
-                          onAdded={refreshShopping}
-                          disabled={disabled}
-                        />
-                        <button
-                          type="button"
-                          className="rounded p-0.5 hover:bg-muted-foreground/20"
-                          aria-label={`Remove ${m.name}`}
-                          onClick={() => removeMatch(r.key, r.rowIndex, m.id)}
-                          disabled={disabled}
-                        >
-                          <X className="h-3 w-3 shrink-0 opacity-70" />
-                        </button>
-                      </Badge>
-                    );
-                  })}
+                        <X className="h-3 w-3 shrink-0 opacity-70" />
+                      </button>
+                    </Badge>
+                  ))}
                 </div>
               )}
             </li>

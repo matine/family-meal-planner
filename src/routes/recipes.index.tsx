@@ -20,15 +20,25 @@ import {
   type RecipeIngredient,
 } from "@/hooks/useTable";
 import { RecipeFilterBar } from "@/components/RecipeFilterBar";
-import { RecipeTagBadges } from "@/components/RecipeTagBadges";
-import { RecipeTagPicker } from "@/components/RecipeTagPicker";
+import { RecipeCardMeta } from "@/components/RecipeCardMeta";
+import { buildRecipeCardMetaItems } from "@/lib/recipe-card-meta";
 import {
   getRecipePantryStatus,
+  parseCookTimeMinutes,
   parseRecipeTags,
+  recipeMatchesCookTimeFilter,
   recipeMatchesInPantryFilter,
   recipeMatchesTagFilter,
+  type CookTimeFilterMax,
   type RecipeTag,
 } from "@/lib/recipe-tags";
+import { RecipeDetailsFields } from "@/components/RecipeDetailsFields";
+import { RecipeFormField } from "@/components/RecipeFormField";
+import {
+  parseMealTypes,
+  recipeMatchesMealTypeFilter,
+  type RecipeMealType,
+} from "@/lib/recipe-meal-types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -96,6 +106,8 @@ function RecipesPage() {
   const [open, setOpen] = useState(false);
   const [tagFilters, setTagFilters] = useState<RecipeTag[]>([]);
   const [inPantryFilter, setInPantryFilter] = useState(false);
+  const [cookTimeFilter, setCookTimeFilter] = useState<CookTimeFilterMax | null>(null);
+  const [mealTypeFilters, setMealTypeFilters] = useState<RecipeMealType[]>([]);
 
   // Quick lookup of which recipes are already in the planner (any meal type).
   const plannedRecipeIds = new Set(
@@ -112,13 +124,23 @@ function RecipesPage() {
   const filteredRecipes = useMemo(() => {
     return recipes.filter((r) => {
       const tags = parseRecipeTags(r.tags);
+      const mealTypes = parseMealTypes(r.meal_types);
       if (!recipeMatchesTagFilter(tags, tagFilters)) return false;
+      if (!recipeMatchesMealTypeFilter(mealTypes, mealTypeFilters)) return false;
       const pantryStatus = getRecipePantryStatus(r, pantryCanonicalIds);
-      return recipeMatchesInPantryFilter(pantryStatus, inPantryFilter);
+      if (!recipeMatchesInPantryFilter(pantryStatus, inPantryFilter)) return false;
+      return recipeMatchesCookTimeFilter(
+        r.cook_time_minutes,
+        cookTimeFilter != null ? [cookTimeFilter] : [],
+      );
     });
-  }, [recipes, tagFilters, inPantryFilter, pantryCanonicalIds]);
+  }, [recipes, tagFilters, mealTypeFilters, inPantryFilter, cookTimeFilter, pantryCanonicalIds]);
 
-  const filtersActive = tagFilters.length > 0 || inPantryFilter;
+  const filtersActive =
+    tagFilters.length > 0 ||
+    mealTypeFilters.length > 0 ||
+    inPantryFilter ||
+    cookTimeFilter != null;
 
   const handleSaved = () => {
     refresh();
@@ -151,15 +173,21 @@ function RecipesPage() {
           <RecipeFilterBar
             tagFilters={tagFilters}
             inPantryFilter={inPantryFilter}
+            cookTimeFilter={cookTimeFilter}
+            mealTypeFilters={mealTypeFilters}
             onTagFiltersChange={setTagFilters}
+            onMealTypeFiltersChange={setMealTypeFilters}
             onInPantryFilterChange={setInPantryFilter}
+            onCookTimeFilterChange={setCookTimeFilter}
           />
           {filtersActive && (
             <button
               type="button"
               onClick={() => {
                 setTagFilters([]);
+                setMealTypeFilters([]);
                 setInPantryFilter(false);
+                setCookTimeFilter(null);
               }}
               className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
             >
@@ -188,18 +216,20 @@ function RecipesPage() {
         <div className="grid gap-3 sm:grid-cols-2">
           {filteredRecipes.map((r) => {
             const inPlanner = plannedRecipeIds.has(r.id);
-            const recipeServes = getRecipeServes(r);
-            const recipeTags = parseRecipeTags(r.tags);
+            const cookTimeMinutes = parseCookTimeMinutes(r.cook_time_minutes);
             const pantryStatus = getRecipePantryStatus(r, pantryCanonicalIds);
-            const { totalRequired } = pantryStatus;
+            const metaItems = buildRecipeCardMetaItems({
+              cookTimeMinutes,
+              pantryStatus,
+            });
             return (
               <Link
                 key={r.id}
                 to="/recipes/$id"
                 params={{ id: r.id }}
-                className="relative rounded-2xl border bg-card p-4 shadow-[var(--shadow-card)] transition hover:border-primary/40 hover:shadow-[var(--shadow-soft)]"
+                className="relative rounded-2xl border bg-card py-4 pl-4 pr-3 shadow-[var(--shadow-card)] transition hover:border-primary/40 hover:shadow-[var(--shadow-soft)] sm:py-4 sm:pl-5 sm:pr-3.5"
               >
-                <div className="flex items-start gap-3">
+                <div className="flex items-start gap-4">
                   {r.image_url ? (
                     <img
                       src={r.image_url}
@@ -211,20 +241,9 @@ function RecipesPage() {
                       🍽️
                     </div>
                   )}
-                  <div className="min-w-0 flex-1 pr-8">
-                    <h3 className="truncate font-semibold">{r.title}</h3>
-                    {recipeServes && (
-                      <p className="text-xs text-muted-foreground">Serves {recipeServes}</p>
-                    )}
-                    {totalRequired === 0 && recipeTags.length === 0 ? (
-                      <p className="mt-1 text-xs text-muted-foreground">No ingredients</p>
-                    ) : (
-                      <RecipeTagBadges
-                        tags={recipeTags}
-                        pantry={pantryStatus}
-                        className="mt-1.5"
-                      />
-                    )}
+                  <div className="min-w-0 flex-1">
+                    <h3 className="truncate pr-7 font-semibold leading-snug">{r.title}</h3>
+                    <RecipeCardMeta items={metaItems} />
                   </div>
                 </div>
                 <div className="absolute right-2 top-2">
@@ -341,10 +360,14 @@ async function saveRecipe(r: {
   source_url?: string;
   image_url?: string;
   tags?: RecipeTag[];
+  cook_time_minutes?: number | null;
+  meal_types?: RecipeMealType[];
 }) {
   const serves = r.serves?.trim() || null;
   const ingredients = stripRecipeMetaIngredient(r.ingredients);
   const tags = r.tags ?? [];
+  const meal_types = r.meal_types ?? [];
+  const cook_time_minutes = parseCookTimeMinutes(r.cook_time_minutes);
   const insertPayload = {
     title: r.title,
     ingredients: ingredients as any,
@@ -353,6 +376,8 @@ async function saveRecipe(r: {
     source_url: r.source_url ?? null,
     image_url: r.image_url ?? null,
     tags,
+    meal_types,
+    cook_time_minutes,
   };
   const { error } = await supabase.from("recipes").insert(insertPayload);
   if (isRecipesServesColumnError(error)) {
@@ -368,6 +393,8 @@ async function saveRecipe(r: {
       source_url: r.source_url ?? null,
       image_url: r.image_url ?? null,
       tags,
+      meal_types,
+      cook_time_minutes,
     });
     if (retryError) throw new Error(retryError.message);
     return;
@@ -383,6 +410,8 @@ function ManualForm({ onDone }: { onDone: () => void }) {
   const [sourceUrl, setSourceUrl] = useState("");
   const [method, setMethod] = useState("");
   const [tags, setTags] = useState<RecipeTag[]>([]);
+  const [cookTimeMinutes, setCookTimeMinutes] = useState<number | null>(null);
+  const [mealTypes, setMealTypes] = useState<RecipeMealType[]>([]);
   const [editRows, setEditRows] = useState<IngredientResolutionRow[]>(() => [
     { key: crypto.randomUUID(), ingredient: { name: "" } },
   ]);
@@ -420,6 +449,8 @@ function ManualForm({ onDone }: { onDone: () => void }) {
         method,
         ingredients: finalized,
         tags,
+        cook_time_minutes: cookTimeMinutes,
+        meal_types: mealTypes,
       });
       toast.success("Recipe saved");
       onDone();
@@ -432,29 +463,23 @@ function ManualForm({ onDone }: { onDone: () => void }) {
 
   return (
     <form onSubmit={submit} className="space-y-4 pt-2">
-      <Input
-        placeholder="Recipe title"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        required
+      <RecipeDetailsFields
+        title={title}
+        onTitleChange={setTitle}
+        serves={serves}
+        onServesChange={setServes}
+        sourceUrl={sourceUrl}
+        onSourceUrlChange={setSourceUrl}
+        cookTimeMinutes={cookTimeMinutes}
+        onCookTimeChange={setCookTimeMinutes}
+        mealTypes={mealTypes}
+        onMealTypesChange={setMealTypes}
+        tags={tags}
+        onTagsChange={setTags}
         disabled={saving}
+        titleRequired
       />
-      <Input
-        placeholder="Serves (optional)"
-        value={serves}
-        onChange={(e) => setServes(e.target.value)}
-        disabled={saving}
-      />
-      <Input
-        type="url"
-        placeholder="Source link (optional)"
-        value={sourceUrl}
-        onChange={(e) => setSourceUrl(e.target.value)}
-        disabled={saving}
-      />
-      <RecipeTagPicker value={tags} onChange={setTags} disabled={saving} />
-      <div className="space-y-2">
-        <p className="text-sm font-medium">Ingredients</p>
+      <RecipeFormField label="Ingredients">
         <IngredientResolutionEditor
           ref={editorRef}
           rows={editRows}
@@ -463,15 +488,17 @@ function ManualForm({ onDone }: { onDone: () => void }) {
           disabled={saving}
           onResolutionGateChange={onResolutionGateChange}
         />
-      </div>
-      <p className="text-sm font-medium">Method</p>
-      <Textarea
-        placeholder="Use numbered steps to describe how to cook the recipe..."
-        value={method}
-        onChange={(e) => setMethod(e.target.value)}
-        rows={6}
-        disabled={saving}
-      />
+      </RecipeFormField>
+      <RecipeFormField label="Method">
+        <Textarea
+          placeholder="Use numbered steps to describe how to cook the recipe..."
+          value={method}
+          onChange={(e) => setMethod(e.target.value)}
+          rows={6}
+          className="w-full min-h-[9rem] resize-y"
+          disabled={saving}
+        />
+      </RecipeFormField>
       <Button
         type="submit"
         className="w-full"

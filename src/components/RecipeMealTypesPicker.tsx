@@ -1,19 +1,25 @@
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { RECIPE_TAGS, TAG_ICONS, isRecipeTag, type RecipeTag } from "@/lib/recipe-tags";
+import {
+  MEAL_TYPE_ICONS,
+  MEAL_TYPE_LABELS,
+  MEAL_TYPES,
+  isRecipeMealType,
+  type RecipeMealType,
+} from "@/lib/recipe-meal-types";
 import { cn } from "@/lib/utils";
 
-const tagChipClass =
+const mealChipClass =
   "h-7 gap-1 rounded-full border px-3 text-xs data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-primary";
 
 /** Toggle chips only — wrap with {@link RecipeFormField} for a label. */
-export function RecipeTagPicker({
+export function RecipeMealTypesPicker({
   value,
   onChange,
   disabled,
   className,
 }: {
-  value: RecipeTag[];
-  onChange: (tags: RecipeTag[]) => void;
+  value: RecipeMealType[];
+  onChange: (meals: RecipeMealType[]) => void;
   disabled?: boolean;
   className?: string;
 }) {
@@ -21,16 +27,21 @@ export function RecipeTagPicker({
     <ToggleGroup
       type="multiple"
       value={value}
-      onValueChange={(next) => onChange(next.filter(isRecipeTag))}
+      onValueChange={(next) => onChange(next.filter(isRecipeMealType))}
       className={cn("flex flex-wrap justify-start gap-1.5", className)}
       disabled={disabled}
     >
-      {RECIPE_TAGS.map((tag) => {
-        const Icon = TAG_ICONS[tag];
+      {MEAL_TYPES.map((meal) => {
+        const Icon = MEAL_TYPE_ICONS[meal];
         return (
-          <ToggleGroupItem key={tag} value={tag} aria-label={tag} className={tagChipClass}>
+          <ToggleGroupItem
+            key={meal}
+            value={meal}
+            aria-label={MEAL_TYPE_LABELS[meal]}
+            className={mealChipClass}
+          >
             <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
-            {tag}
+            {MEAL_TYPE_LABELS[meal]}
           </ToggleGroupItem>
         );
       })}

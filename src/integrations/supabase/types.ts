@@ -154,10 +154,12 @@ export type Database = {
       }
       recipes: {
         Row: {
+          cook_time_minutes: number | null
           created_at: string
           id: string
           image_url: string | null
           ingredients: Json
+          meal_types: string[]
           method: string | null
           serves: string | null
           source_url: string | null
@@ -165,10 +167,12 @@ export type Database = {
           title: string
         }
         Insert: {
+          cook_time_minutes?: number | null
           created_at?: string
           id?: string
           image_url?: string | null
           ingredients?: Json
+          meal_types?: string[]
           method?: string | null
           serves?: string | null
           source_url?: string | null
@@ -176,10 +180,12 @@ export type Database = {
           title: string
         }
         Update: {
+          cook_time_minutes?: number | null
           created_at?: string
           id?: string
           image_url?: string | null
           ingredients?: Json
+          meal_types?: string[]
           method?: string | null
           serves?: string | null
           source_url?: string | null

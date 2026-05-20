@@ -49,7 +49,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { RecipeMethodDisplay } from "@/components/RecipeMethodDisplay";
 import { AddCanonicalToShoppingButton } from "@/components/AddCanonicalToShoppingButton";
@@ -62,15 +61,22 @@ import {
 import { cap } from "@/lib/text";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { RecipeDetailsFields } from "@/components/RecipeDetailsFields";
+import { RecipeFormField } from "@/components/RecipeFormField";
 import { RecipeTagBadges } from "@/components/RecipeTagBadges";
-import { RecipeTagPicker } from "@/components/RecipeTagPicker";
+import { parseMealTypes, type RecipeMealType } from "@/lib/recipe-meal-types";
 import {
   getRecipeServes,
   isRecipesServesColumnError,
   stripRecipeMetaIngredient,
   withServesMetaIngredient,
 } from "@/lib/recipe-serves-fallback";
-import { parseRecipeTags, type RecipeTag } from "@/lib/recipe-tags";
+import {
+  getRecipePantryStatus,
+  parseCookTimeMinutes,
+  parseRecipeTags,
+  type RecipeTag,
+} from "@/lib/recipe-tags";
 
 export const Route = createFileRoute("/recipes/$id")({
   component: RecipeDetailPage,
@@ -106,6 +112,8 @@ function RecipeDetailPage() {
   const [sourceUrlValue, setSourceUrlValue] = useState("");
   const [methodValue, setMethodValue] = useState("");
   const [tagsValue, setTagsValue] = useState<RecipeTag[]>([]);
+  const [cookTimeValue, setCookTimeValue] = useState<number | null>(null);
+  const [mealTypesValue, setMealTypesValue] = useState<RecipeMealType[]>([]);
   const [editRows, setEditRows] = useState<IngredientResolutionRow[]>([]);
   const ingredientEditorRef = useRef<IngredientResolutionEditorHandle>(null);
   const [resolutionGate, setResolutionGate] = useState<IngredientResolutionGate>({
@@ -136,6 +144,8 @@ function RecipeDetailPage() {
     setSourceUrlValue(recipe.source_url ?? "");
     setMethodValue(recipe.method ?? "");
     setTagsValue(parseRecipeTags(recipe.tags));
+    setCookTimeValue(parseCookTimeMinutes(recipe.cook_time_minutes));
+    setMealTypesValue(parseMealTypes(recipe.meal_types));
   }, [recipe]);
 
   if (!recipe) {
@@ -158,6 +168,8 @@ function RecipeDetailPage() {
     setSourceUrlValue(recipe.source_url ?? "");
     setMethodValue(recipe.method ?? "");
     setTagsValue(parseRecipeTags(recipe.tags));
+    setCookTimeValue(parseCookTimeMinutes(recipe.cook_time_minutes));
+    setMealTypesValue(parseMealTypes(recipe.meal_types));
     setEditing(true);
   };
 
@@ -168,6 +180,9 @@ function RecipeDetailPage() {
   );
   const recipeServes = getRecipeServes(recipe);
   const recipeTags = parseRecipeTags(recipe.tags);
+  const recipeCookTime = parseCookTimeMinutes(recipe.cook_time_minutes);
+  const recipeMealTypes = parseMealTypes(recipe.meal_types);
+  const recipePantryStatus = getRecipePantryStatus(recipe, pantryCanonicalIds);
   const ingredients = stripRecipeMetaIngredient(
     (recipe.ingredients as RecipeIngredient[] | null) ?? [],
   );
@@ -282,6 +297,8 @@ function RecipeDetailPage() {
     setSourceUrlValue(recipe.source_url ?? "");
     setMethodValue(recipe.method ?? "");
     setTagsValue(parseRecipeTags(recipe.tags));
+    setCookTimeValue(parseCookTimeMinutes(recipe.cook_time_minutes));
+    setMealTypesValue(parseMealTypes(recipe.meal_types));
     setEditRows([]);
     setEditing(false);
   };
@@ -317,6 +334,8 @@ function RecipeDetailPage() {
         method: methodValue,
         ingredients: ingredientsForSave as any,
         tags: tagsValue,
+        cook_time_minutes: cookTimeValue,
+        meal_types: mealTypesValue,
       };
       let { error: updateError } = await supabase
         .from("recipes")
@@ -339,6 +358,8 @@ function RecipeDetailPage() {
             method: methodValue,
             ingredients: withServesMetaIngredient(ingredientsForSave, serves) as any,
             tags: tagsValue,
+            cook_time_minutes: cookTimeValue,
+            meal_types: mealTypesValue,
           })
           .eq("id", recipe.id);
         updateError = retryError;
@@ -366,6 +387,8 @@ function RecipeDetailPage() {
                 source_url: sourceUrl,
                 method: methodValue,
                 tags: tagsValue,
+                cook_time_minutes: cookTimeValue,
+                meal_types: mealTypesValue,
                 ingredients: (servesSavedInMeta
                   ? withServesMetaIngredient(ingredientsForSave, serves)
                   : ingredientsForSave) as any,
@@ -422,31 +445,21 @@ function RecipeDetailPage() {
                 )}
               </Button>
             </div>
-            <div className="w-full space-y-2">
-              <Input
-                value={titleValue}
-                onChange={(e) => setTitleValue(e.target.value)}
-                className="w-full"
-                placeholder="Recipe title"
-                disabled={saving}
-              />
-              <Input
-                value={servesValue}
-                onChange={(e) => setServesValue(e.target.value)}
-                className="w-full"
-                placeholder="Serves (optional)"
-                disabled={saving}
-              />
-              <Input
-                type="url"
-                value={sourceUrlValue}
-                onChange={(e) => setSourceUrlValue(e.target.value)}
-                className="w-full"
-                placeholder="Source link (optional)"
-                disabled={saving}
-              />
-              <RecipeTagPicker value={tagsValue} onChange={setTagsValue} disabled={saving} />
-            </div>
+            <RecipeDetailsFields
+              title={titleValue}
+              onTitleChange={setTitleValue}
+              serves={servesValue}
+              onServesChange={setServesValue}
+              sourceUrl={sourceUrlValue}
+              onSourceUrlChange={setSourceUrlValue}
+              cookTimeMinutes={cookTimeValue}
+              onCookTimeChange={setCookTimeValue}
+              mealTypes={mealTypesValue}
+              onMealTypesChange={setMealTypesValue}
+              tags={tagsValue}
+              onTagsChange={setTagsValue}
+              disabled={saving}
+            />
           </div>
         ) : (
           <>
@@ -470,7 +483,13 @@ function RecipeDetailPage() {
                   </Button>
                 </div>
               )}
-              <RecipeTagBadges tags={recipeTags} className="mt-3" />
+              <RecipeTagBadges
+                tags={recipeTags}
+                mealTypes={recipeMealTypes}
+                pantry={recipePantryStatus}
+                cookTimeMinutes={recipeCookTime}
+                className="mt-3"
+              />
             </div>
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" className="gap-1.5" onClick={beginEdit}>
@@ -511,40 +530,44 @@ function RecipeDetailPage() {
               : "rounded-2xl border bg-card p-5 shadow-[var(--shadow-card)]",
           )}
         >
-          <h2 className="mb-3 font-semibold">Ingredients</h2>
           {editing ? (
-            <div className="space-y-3">
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                Edit each line as it appears in the recipe, then map it to your ingredients library
-                (tags). Search below each line or add a new ingredient — same as when importing a
-                recipe.
-              </p>
-              <IngredientResolutionEditor
-                ref={ingredientEditorRef}
-                rows={editRows}
-                onRowsChange={setEditRows}
-                allowAddRemove
-                disabled={saving}
-                onResolutionGateChange={onIngredientResolutionGate}
-              />
-            </div>
+            <RecipeFormField label="Ingredients">
+              <div className="space-y-3">
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  Edit each line as it appears in the recipe, then map it to your ingredients
+                  library. Search below each line or add a new ingredient — same as when importing
+                  a recipe.
+                </p>
+                <IngredientResolutionEditor
+                  ref={ingredientEditorRef}
+                  rows={editRows}
+                  onRowsChange={setEditRows}
+                  allowAddRemove
+                  disabled={saving}
+                  onResolutionGateChange={onIngredientResolutionGate}
+                />
+              </div>
+            </RecipeFormField>
           ) : (
-            <ul className="space-y-3">
-              {requiredIngredients.map((ing, i) => renderIngredientItem(ing, `req-${i}`))}
-              {optionalIngredients.length > 0 && (
-                <>
-                  {requiredIngredients.length > 0 && (
-                    <li className="list-none px-2 py-2" aria-hidden>
-                      <div className="border-t border-border" />
+            <>
+              <h2 className="mb-3 font-semibold">Ingredients</h2>
+              <ul className="space-y-3">
+                {requiredIngredients.map((ing, i) => renderIngredientItem(ing, `req-${i}`))}
+                {optionalIngredients.length > 0 && (
+                  <>
+                    {requiredIngredients.length > 0 && (
+                      <li className="list-none px-2 py-2" aria-hidden>
+                        <div className="border-t border-border" />
+                      </li>
+                    )}
+                    <li className="list-none px-2 pb-1">
+                      <h3 className="text-sm font-semibold">Optional ingredients</h3>
                     </li>
-                  )}
-                  <li className="list-none px-2 pb-1">
-                    <h3 className="text-sm font-semibold">Optional ingredients</h3>
-                  </li>
-                  {optionalIngredients.map((ing, i) => renderIngredientItem(ing, `opt-${i}`))}
-                </>
-              )}
-            </ul>
+                    {optionalIngredients.map((ing, i) => renderIngredientItem(ing, `opt-${i}`))}
+                  </>
+                )}
+              </ul>
+            </>
           )}
         </section>
 
@@ -556,19 +579,22 @@ function RecipeDetailPage() {
                 : "rounded-2xl border bg-card p-5 shadow-[var(--shadow-card)]",
             )}
           >
-            <h2 className="mb-3 font-semibold">Method</h2>
             {editing ? (
-              <Textarea
-                value={methodValue}
-                onChange={(e) => setMethodValue(e.target.value)}
-                placeholder="Method..."
-                rows={12}
-                style={{ minHeight: 300 }}
-                className="min-h-[300px] w-full resize-y bg-white py-3 leading-8"
-                disabled={saving}
-              />
+              <RecipeFormField label="Method">
+                <Textarea
+                  value={methodValue}
+                  onChange={(e) => setMethodValue(e.target.value)}
+                  placeholder="Use numbered steps to describe how to cook the recipe..."
+                  rows={12}
+                  className="min-h-[300px] w-full resize-y py-3 leading-8"
+                  disabled={saving}
+                />
+              </RecipeFormField>
             ) : (
-              <RecipeMethodDisplay method={recipe.method ?? ""} />
+              <>
+                <h2 className="mb-3 font-semibold">Method</h2>
+                <RecipeMethodDisplay method={recipe.method ?? ""} />
+              </>
             )}
           </section>
         )}
