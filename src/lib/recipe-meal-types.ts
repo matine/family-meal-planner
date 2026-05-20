@@ -43,9 +43,14 @@ export function parseMealTypes(value: unknown): RecipeMealType[] {
 export function mealTypesSummary(selected: RecipeMealType[]): string {
   if (selected.length === 0) return "Meals";
   if (selected.length <= 2) {
-    return selected.map((m) => MEAL_TYPE_LABELS[m]).join(", ");
+    return formatMealTypesLabel(selected);
   }
   return `${selected.length} meals`;
+}
+
+/** Read-only label for recipe detail (always comma-separated). */
+export function formatMealTypesLabel(selected: RecipeMealType[]): string {
+  return selected.map((m) => MEAL_TYPE_LABELS[m]).join(", ");
 }
 
 export function recipeMatchesMealTypeFilter(

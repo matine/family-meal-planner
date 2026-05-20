@@ -11,8 +11,8 @@ const links = [
 export function AppNav() {
   const { pathname } = useLocation();
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-3 py-3">
+    <header className="sticky top-0 z-40 h-14 shrink-0 border-b bg-background/80 backdrop-blur-md">
+      <div className="mx-auto flex h-full max-w-5xl items-center justify-between px-3">
         <Link to="/" className="flex items-center gap-2">
           <span className="font-semibold tracking-tight leading-4">Bowbrier Kitchen</span>
         </Link>

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatMealTypesLabel,
   mealTypesSummary,
   parseMealTypes,
   recipeMatchesMealTypeFilter,
@@ -18,6 +19,15 @@ describe("recipeMatchesMealTypeFilter", () => {
     expect(recipeMatchesMealTypeFilter(meals, ["dinner"])).toBe(false);
     expect(recipeMatchesMealTypeFilter(meals, ["lunch"])).toBe(true);
     expect(recipeMatchesMealTypeFilter(meals, [])).toBe(true);
+  });
+});
+
+describe("formatMealTypesLabel", () => {
+  it("joins meal labels with commas", () => {
+    expect(formatMealTypesLabel(["breakfast"])).toBe("Breakfast");
+    expect(formatMealTypesLabel(["breakfast", "lunch", "dinner"])).toBe(
+      "Breakfast, Lunch, Dinner",
+    );
   });
 });
 

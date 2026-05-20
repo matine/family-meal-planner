@@ -1,5 +1,5 @@
-import { Carrot, Clock } from "lucide-react";
-import { MEAL_TYPE_ICONS, MEAL_TYPE_LABELS, type RecipeMealType } from "@/lib/recipe-meal-types";
+import { Carrot, Clock, Users, UtensilsCrossed } from "lucide-react";
+import { formatMealTypesLabel, type RecipeMealType } from "@/lib/recipe-meal-types";
 import {
   TAG_ICONS,
   formatCookTime,
@@ -16,20 +16,33 @@ export function RecipeTagBadges({
   mealTypes = [],
   pantry,
   cookTimeMinutes,
+  serves,
   className,
 }: {
   tags: RecipeTag[];
   mealTypes?: RecipeMealType[];
   pantry?: RecipePantryStatus;
   cookTimeMinutes?: number | null;
+  serves?: string | null;
   className?: string;
 }) {
   const showPantry = pantry && pantry.totalRequired > 0;
   const cookTimeLabel = formatCookTime(cookTimeMinutes);
-  if (!showPantry && !cookTimeLabel && mealTypes.length === 0 && tags.length === 0) return null;
+  const servesLabel = serves?.trim() || null;
+  if (!showPantry && !cookTimeLabel && !servesLabel && mealTypes.length === 0 && tags.length === 0)
+    return null;
 
   return (
     <div className={cn("flex flex-wrap items-center gap-1.5", className)}>
+      {servesLabel && (
+        <span
+          className={cn(recipeChipClass, "border-border bg-muted/60 text-muted-foreground")}
+          title="Serves"
+        >
+          <Users className="h-3 w-3 shrink-0" aria-hidden />
+          Serves {servesLabel}
+        </span>
+      )}
       {showPantry && (
         <span
           className={cn(
@@ -55,18 +68,15 @@ export function RecipeTagBadges({
           {cookTimeLabel}
         </span>
       )}
-      {mealTypes.map((meal) => {
-        const Icon = MEAL_TYPE_ICONS[meal];
-        return (
-          <span
-            key={meal}
-            className={cn(recipeChipClass, "border-border bg-muted/60 text-muted-foreground")}
-          >
-            <Icon className="h-3 w-3 shrink-0" aria-hidden />
-            {MEAL_TYPE_LABELS[meal]}
-          </span>
-        );
-      })}
+      {mealTypes.length > 0 && (
+        <span
+          className={cn(recipeChipClass, "border-border bg-muted/60 text-muted-foreground")}
+          title="Meal types"
+        >
+          <UtensilsCrossed className="h-3 w-3 shrink-0" aria-hidden />
+          {formatMealTypesLabel(mealTypes)}
+        </span>
+      )}
       {tags.map((tag) => {
         const Icon = TAG_ICONS[tag];
         return (

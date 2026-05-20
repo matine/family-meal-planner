@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   CalendarCheck,
   Carrot,
+  Check,
   ExternalLink,
   Loader2,
   Pencil,
@@ -11,7 +12,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   useTable,
@@ -82,6 +83,9 @@ export const Route = createFileRoute("/recipes/$id")({
   component: RecipeDetailPage,
 });
 
+/** Matches AppNav `h-14` (3.5rem). */
+const APP_NAV_STICKY_OFFSET_PX = 56;
+
 type MealType = "breakfast" | "lunch" | "dinner";
 const MEAL_TYPES: { key: MealType; label: string }[] = [
   { key: "breakfast", label: "Breakfast" },
@@ -116,6 +120,8 @@ function RecipeDetailPage() {
   const [mealTypesValue, setMealTypesValue] = useState<RecipeMealType[]>([]);
   const [editRows, setEditRows] = useState<IngredientResolutionRow[]>([]);
   const ingredientEditorRef = useRef<IngredientResolutionEditorHandle>(null);
+  const editToolbarSentinelRef = useRef<HTMLDivElement>(null);
+  const [editToolbarPinned, setEditToolbarPinned] = useState(false);
   const [resolutionGate, setResolutionGate] = useState<IngredientResolutionGate>({
     allMatched: false,
     aiLoading: false,
@@ -136,6 +142,26 @@ function RecipeDetailPage() {
         setRecipe(data as Recipe | null);
       });
   }, [id]);
+
+  useLayoutEffect(() => {
+    if (!editing) {
+      setEditToolbarPinned(false);
+      return;
+    }
+    const sentinel = editToolbarSentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setEditToolbarPinned(!entry.isIntersecting),
+      {
+        root: null,
+        rootMargin: `-${APP_NAV_STICKY_OFFSET_PX}px 0px 0px 0px`,
+        threshold: 0,
+      },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [editing]);
 
   useEffect(() => {
     if (!recipe) return;
@@ -407,44 +433,99 @@ function RecipeDetailPage() {
 
   return (
     <div className="space-y-6">
-      <Link
-        to="/recipes"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" /> Back to recipes
-      </Link>
-
-      <header
-        className={cn(
-          "flex flex-col gap-4",
-          !editing && "sm:flex-row sm:items-end sm:justify-between",
+      <div className="flex flex-col gap-2">
+        <Link
+          to="/recipes"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" /> Back to recipes
+        </Link>
+        {editing ? (
+          <>
+            <div ref={editToolbarSentinelRef} className="h-px w-full shrink-0" aria-hidden />
+            {editToolbarPinned && <div className="h-11 shrink-0" aria-hidden />}
+            <div
+              className={cn(
+                editToolbarPinned &&
+                  "fixed inset-x-0 top-14 z-30 border-b border-border bg-background/95 shadow-sm backdrop-blur-md",
+              )}
+            >
+              <div
+                className={cn(
+                  "flex justify-end gap-2 py-2",
+                  editToolbarPinned && "mx-auto w-full max-w-5xl px-3",
+                )}
+                role="toolbar"
+                aria-label="Recipe edits"
+              >
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={cancelEdit}
+                  disabled={saving}
+                  aria-label="Cancel editing"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  onClick={saveEdit}
+                  disabled={saving || !resolutionGate.allMatched}
+                  aria-label={saving ? "Saving…" : "Save changes"}
+                  title={
+                    !resolutionGate.allMatched
+                      ? "Map every ingredient to your library before saving."
+                      : undefined
+                  }
+                >
+                  {saving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Check className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={beginEdit}
+              aria-label="Edit recipe"
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            {inPlanner ? (
+              <Button size="icon" disabled aria-label="Already in planner" title="Already in planner">
+                <CalendarCheck className="h-4 w-4" />
+              </Button>
+            ) : (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="icon" aria-label="Add to planner">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Choose meal</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {MEAL_TYPES.map((m) => (
+                    <DropdownMenuItem key={m.key} onSelect={() => void addToPlanner(m.key)}>
+                      {m.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
         )}
-      >
+      </div>
+
+      <header className="flex flex-col gap-4">
         {editing ? (
           <div className="w-full space-y-4">
-            <div className="flex flex-wrap gap-2 justify-end">
-              <Button variant="outline" onClick={cancelEdit} disabled={saving}>
-                Cancel
-              </Button>
-              <Button
-                onClick={saveEdit}
-                disabled={saving || !resolutionGate.allMatched}
-                title={
-                  !resolutionGate.allMatched
-                    ? "Map every ingredient to your library before saving."
-                    : undefined
-                }
-                className="gap-1.5"
-              >
-                {saving ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Saving...
-                  </>
-                ) : (
-                  "Save changes"
-                )}
-              </Button>
-            </div>
             <RecipeDetailsFields
               title={titleValue}
               onTitleChange={setTitleValue}
@@ -462,63 +543,32 @@ function RecipeDetailPage() {
             />
           </div>
         ) : (
-          <>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">{recipe.title}</h1>
-              {recipeServes && (
-                <p className="mt-1 text-sm text-muted-foreground">Serves {recipeServes}</p>
-              )}
-              {recipe.source_url && (
-                <div className="mt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 gap-1.5 px-2.5 text-xs font-normal"
-                    asChild
-                  >
-                    <a href={recipe.source_url} target="_blank" rel="noreferrer">
-                      <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                      {sourceHostname(recipe.source_url)}
-                    </a>
-                  </Button>
-                </div>
-              )}
-              <RecipeTagBadges
-                tags={recipeTags}
-                mealTypes={recipeMealTypes}
-                pantry={recipePantryStatus}
-                cookTimeMinutes={recipeCookTime}
-                className="mt-3"
-              />
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" className="gap-1.5" onClick={beginEdit}>
-                <Pencil className="h-4 w-4" /> Edit recipe
-              </Button>
-              {inPlanner ? (
-                <Button className="gap-1.5" disabled title="Already in planner">
-                  <CalendarCheck className="h-4 w-4" /> In planner
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">{recipe.title}</h1>
+            {recipe.source_url && (
+              <div className="mt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 gap-1.5 px-2.5 text-xs font-normal"
+                  asChild
+                >
+                  <a href={recipe.source_url} target="_blank" rel="noreferrer">
+                    <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    {sourceHostname(recipe.source_url)}
+                  </a>
                 </Button>
-              ) : (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button className="gap-1.5">
-                      <Plus className="h-4 w-4" /> Add to planner
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Choose meal</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {MEAL_TYPES.map((m) => (
-                      <DropdownMenuItem key={m.key} onSelect={() => void addToPlanner(m.key)}>
-                        {m.label}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-            </div>
-          </>
+              </div>
+            )}
+            <RecipeTagBadges
+              tags={recipeTags}
+              mealTypes={recipeMealTypes}
+              pantry={recipePantryStatus}
+              cookTimeMinutes={recipeCookTime}
+              serves={recipeServes}
+              className="mt-3"
+            />
+          </div>
         )}
       </header>
 
@@ -603,10 +653,7 @@ function RecipeDetailPage() {
           <div className="flex justify-end">
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                >
+                <Button variant="destructive" className="gap-1.5 shadow">
                   <Trash2 className="h-4 w-4" /> Delete recipe
                 </Button>
               </AlertDialogTrigger>
