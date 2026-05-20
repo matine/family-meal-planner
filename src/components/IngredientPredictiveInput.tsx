@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { Input } from "@/components/ui/input";
+import { recipeFieldInvalidClass } from "@/lib/recipe-form-validation";
 import { cn } from "@/lib/utils";
 import { suggestCanonicals, type CanonicalLite } from "@/lib/canonical";
 import { cap } from "@/lib/text";
@@ -16,6 +17,8 @@ export type IngredientPredictiveInputProps = {
   inputClassName?: string;
   /** Called when the user explicitly picks an existing canonical from the list. */
   onPick?: (c: CanonicalLite) => void;
+  /** Highlight as a required field that still needs a value. */
+  invalid?: boolean;
 };
 
 const DROPDOWN_MAX_HEIGHT = 224;
@@ -39,6 +42,7 @@ export function IngredientPredictiveInput({
   placeholder = "Ingredient",
   className,
   inputClassName,
+  invalid = false,
 }: IngredientPredictiveInputProps) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -274,7 +278,12 @@ export function IngredientPredictiveInput({
             }, 120);
           }}
           onKeyDown={onKeyDown}
-          className={cn("relative bg-transparent", inputClassName)}
+          className={cn(
+            "relative bg-transparent",
+            inputClassName,
+            invalid && recipeFieldInvalidClass,
+          )}
+          aria-invalid={invalid || undefined}
           autoComplete="off"
         />
       </div>

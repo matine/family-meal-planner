@@ -5,6 +5,7 @@ import { RecipeTagPicker } from "@/components/RecipeTagPicker";
 import { Input } from "@/components/ui/input";
 import type { RecipeMealType } from "@/lib/recipe-meal-types";
 import type { RecipeTag } from "@/lib/recipe-tags";
+import { recipeFieldInvalidClass } from "@/lib/recipe-form-validation";
 import { cn } from "@/lib/utils";
 
 export function RecipeDetailsFields({
@@ -22,6 +23,7 @@ export function RecipeDetailsFields({
   onTagsChange,
   disabled,
   titleRequired,
+  titleInvalid,
   className,
 }: {
   title: string;
@@ -38,18 +40,22 @@ export function RecipeDetailsFields({
   onTagsChange: (value: RecipeTag[]) => void;
   disabled?: boolean;
   titleRequired?: boolean;
+  titleInvalid?: boolean;
   className?: string;
 }) {
+  const showTitleError = Boolean(titleRequired && titleInvalid);
+
   return (
     <div className={cn("space-y-4", className)}>
-      <RecipeFormField label="Title">
+      <RecipeFormField label="Title" required={titleRequired}>
         <Input
           value={title}
           onChange={(e) => onTitleChange(e.target.value)}
-          className="w-full"
+          className={cn("w-full", showTitleError && recipeFieldInvalidClass)}
           placeholder="e.g. Chicken pie"
           required={titleRequired}
           disabled={disabled}
+          aria-invalid={showTitleError || undefined}
         />
       </RecipeFormField>
 

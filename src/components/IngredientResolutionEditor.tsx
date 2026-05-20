@@ -76,6 +76,8 @@ export type IngredientResolutionEditorProps = {
   disabled?: boolean;
   /** Fires when mapping completeness or AI busy state changes (e.g. to gate Save). */
   onResolutionGateChange?: (gate: IngredientResolutionGate) => void;
+  /** Red outline on match inputs that still need a library mapping. */
+  showRequiredErrors?: boolean;
 };
 
 export const IngredientResolutionEditor = forwardRef<
@@ -89,6 +91,7 @@ export const IngredientResolutionEditor = forwardRef<
     autoSuggestAi = false,
     disabled = false,
     onResolutionGateChange,
+    showRequiredErrors = false,
   },
   ref,
 ) {
@@ -568,17 +571,18 @@ export const IngredientResolutionEditor = forwardRef<
                   placeholder="Match to ingredients in your library"
                   className="min-w-0 flex-1"
                   inputClassName="!bg-white"
+                  invalid={showRequiredErrors && res.matches.length === 0}
                 />
                 <Button
                   type="button"
                   variant={canAddNewFromQuery ? "default" : "outline"}
-                  size="sm"
-                  className="h-9 shrink-0 gap-1"
+                  size="icon"
+                  className="h-9 w-9 shrink-0"
                   onClick={() => void addNewCanonicalToRow(r.key, r.rowIndex)}
                   disabled={disabled || !canAddNewFromQuery}
+                  aria-label="Add ingredient to library"
                 >
-                  <Plus className="h-3.5 w-3.5" />
-                  Add
+                  <Plus className="h-4 w-4" />
                 </Button>
               </div>
 
@@ -613,12 +617,13 @@ export const IngredientResolutionEditor = forwardRef<
         <Button
           type="button"
           variant="outline"
-          size="sm"
+          size="icon"
           onClick={addRow}
           disabled={disabled}
-          className="gap-1 mt-4"
+          className="mt-4"
+          aria-label="Add ingredient"
         >
-          <Plus className="h-3.5 w-3.5" /> Add ingredient
+          <Plus className="h-4 w-4" />
         </Button>
       )}
     </div>

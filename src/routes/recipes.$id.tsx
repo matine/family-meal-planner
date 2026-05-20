@@ -185,6 +185,9 @@ function RecipeDetailPage() {
   const recipeCookTime = parseCookTimeMinutes(recipe.cook_time_minutes);
   const recipeMealTypes = parseMealTypes(recipe.meal_types);
   const recipePantryStatus = getRecipePantryStatus(recipe, pantryCanonicalIds);
+  const titleInvalid = editing && !titleValue.trim();
+  const showIngredientErrors =
+    editing && !resolutionGate.aiLoading && !resolutionGate.allMatched;
   const ingredients = stripRecipeMetaIngredient(
     (recipe.ingredients as RecipeIngredient[] | null) ?? [],
   );
@@ -425,8 +428,12 @@ function RecipeDetailPage() {
               onCancel={cancelEdit}
               onSave={saveEdit}
               saving={saving}
-              saveDisabled={!resolutionGate.allMatched}
-              saveDisabledTitle="Map every ingredient to your library before saving."
+              saveDisabled={!resolutionGate.allMatched || titleInvalid}
+              saveDisabledTitle={
+                titleInvalid
+                  ? "Recipe title is required."
+                  : "Map every ingredient to your library before saving."
+              }
             />
           ) : (
             <div className="flex flex-wrap justify-end gap-2">
@@ -482,6 +489,8 @@ function RecipeDetailPage() {
               tags={tagsValue}
               onTagsChange={setTagsValue}
               disabled={saving}
+              titleRequired
+              titleInvalid={titleInvalid}
             />
           </div>
         ) : (
@@ -523,7 +532,7 @@ function RecipeDetailPage() {
           )}
         >
           {editing ? (
-            <RecipeFormField label="Ingredients">
+            <RecipeFormField label="Ingredients" required>
               <div className="space-y-3">
                 <p className="text-xs leading-relaxed text-muted-foreground">
                   Edit each line as it appears in the recipe, then map it to your ingredients
@@ -537,6 +546,7 @@ function RecipeDetailPage() {
                   allowAddRemove
                   disabled={saving}
                   onResolutionGateChange={onIngredientResolutionGate}
+                  showRequiredErrors={showIngredientErrors}
                 />
               </div>
             </RecipeFormField>

@@ -77,8 +77,11 @@ export function RecipeFormEditor({
     setResolutionGate(gate);
   }, []);
 
+  const titleInvalid = !title.trim();
+  const showIngredientErrors = !resolutionGate.aiLoading && !resolutionGate.allMatched;
+
   const canSave =
-    resolutionGate.allMatched && !resolutionGate.aiLoading && editRows.length > 0;
+    resolutionGate.allMatched && !resolutionGate.aiLoading && editRows.length > 0 && !titleInvalid;
 
   const handleSave = async () => {
     const nextTitle = title.trim();
@@ -134,7 +137,9 @@ export function RecipeFormEditor({
             saveDisabledTitle={
               resolutionGate.aiLoading
                 ? "Matching ingredients…"
-                : "Map every ingredient to your library before saving."
+                : titleInvalid
+                  ? "Recipe title is required."
+                  : "Map every ingredient to your library before saving."
             }
             cancelLabel="Cancel"
             saveLabel="Save recipe"
@@ -159,12 +164,13 @@ export function RecipeFormEditor({
           onTagsChange={setTags}
           disabled={saving}
           titleRequired
+          titleInvalid={titleInvalid}
         />
       </header>
 
       <div className="space-y-0">
         <section className="border-t border-border pt-6">
-          <RecipeFormField label="Ingredients">
+          <RecipeFormField label="Ingredients" required>
             <div className="space-y-3">
               <p className="text-xs leading-relaxed text-muted-foreground">{ingredientsHint}</p>
               <IngredientResolutionEditor
@@ -175,6 +181,7 @@ export function RecipeFormEditor({
                 allowAddRemove={allowAddRemoveIngredients}
                 disabled={saving}
                 onResolutionGateChange={onResolutionGateChange}
+                showRequiredErrors={showIngredientErrors}
               />
             </div>
           </RecipeFormField>
