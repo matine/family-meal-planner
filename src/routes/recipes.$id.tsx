@@ -2,12 +2,12 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
   CalendarCheck,
+  CalendarPlus,
   Carrot,
   Check,
   ExternalLink,
   Loader2,
   Pencil,
-  Plus,
   ShoppingBasket,
   Trash2,
   X,
@@ -470,28 +470,32 @@ function RecipeDetailPage() {
             >
               <Pencil className="h-4 w-4" />
             </Button>
-            {inPlanner ? (
-              <Button size="icon" disabled aria-label="Already in planner" title="Already in planner">
-                <CalendarCheck className="h-4 w-4" />
-              </Button>
-            ) : (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button size="icon" aria-label="Add to planner">
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Choose meal</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {MEAL_TYPES.map((m) => (
-                    <DropdownMenuItem key={m.key} onSelect={() => void addToPlanner(m.key)}>
-                      {m.label}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  disabled={inPlanner}
+                  aria-label={inPlanner ? "Already in planner" : "Add to planner"}
+                  title={inPlanner ? "Already in planner" : "Add to planner"}
+                >
+                  {inPlanner ? (
+                    <CalendarCheck className="h-4 w-4" />
+                  ) : (
+                    <CalendarPlus className="h-4 w-4" />
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Add to planner</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {MEAL_TYPES.map((m) => (
+                  <DropdownMenuItem key={m.key} onSelect={() => void addToPlanner(m.key)}>
+                    {m.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             </div>
           )
         }
