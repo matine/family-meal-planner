@@ -35,6 +35,7 @@ function RecipeNewReviewPage() {
       initialServes={draft.serves ?? ""}
       initialSourceUrl={draft.source_url ?? ""}
       initialMethod={draft.method ?? ""}
+      initialImageUrl={draft.image_url ?? ""}
       initialIngredients={draft.ingredients}
       ingredientAutoSuggest
       allowAddRemoveIngredients={false}
@@ -43,10 +44,7 @@ function RecipeNewReviewPage() {
         navigate({ to: "/recipes" });
       }}
       onSave={async (data) => {
-        const id = await saveRecipe({
-          ...data,
-          image_url: draft.image_url,
-        });
+        const id = await saveRecipe(data);
         clearRecipeImportDraft();
         toast.success(`Saved "${data.title}"`);
         navigate({ to: "/recipes/$id", params: { id } });

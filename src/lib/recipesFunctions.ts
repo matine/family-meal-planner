@@ -3,4 +3,9 @@ export type {
   ParseRecipeMeta,
   ParseRecipeResponse,
 } from "./recipes.functions";
-export { parseRecipe, suggestIngredientMatches, StrictRecipeSchema } from "./recipes.functions";
+export {
+  fetchRecipeImageFromSource,
+  parseRecipe,
+  suggestIngredientMatches,
+  StrictRecipeSchema,
+} from "./recipes.functions";

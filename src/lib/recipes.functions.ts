@@ -15,6 +15,7 @@ import {
 import {
   draftLooksComplete,
   extractRecipeFromUrlHtml,
+  fetchSourcePageOgImage,
   type RecipeDraft,
 } from "@/lib/recipe-url-extract";
 import { finalizeImportedIngredients, normalizeIngredientLine } from "@/lib/ingredient-normalize";
@@ -620,6 +621,29 @@ export const parseRecipe = createServerFn({ method: "POST" })
     } catch (e) {
       return fail(e);
     }
+  });
+
+const SourceImageInputSchema = z.object({
+  sourceUrl: z.string().min(1),
+});
+
+export const fetchRecipeImageFromSource = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => SourceImageInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    let url: URL;
+    try {
+      url = new URL(data.sourceUrl.trim());
+    } catch {
+      throw new Error("Enter a valid source link first.");
+    }
+    if (!/^https?:$/i.test(url.protocol)) {
+      throw new Error("Source link must use http or https.");
+    }
+    const image_url = await fetchSourcePageOgImage(url.href);
+    if (!image_url) {
+      throw new Error("No image found on that page.");
+    }
+    return { image_url };
   });
 
 const SuggestInputSchema = z.object({

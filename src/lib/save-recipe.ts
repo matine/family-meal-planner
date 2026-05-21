@@ -6,6 +6,7 @@ import {
   stripRecipeMetaIngredient,
   withServesMetaIngredient,
 } from "@/lib/recipe-serves-fallback";
+import { normalizeRecipeImageUrl } from "@/lib/recipe-image";
 import { parseCookTimeMinutes, type RecipeTag } from "@/lib/recipe-tags";
 
 export type SaveRecipeInput = {
@@ -26,13 +27,14 @@ export async function saveRecipe(r: SaveRecipeInput): Promise<string> {
   const tags = r.tags ?? [];
   const meal_types = r.meal_types ?? [];
   const cook_time_minutes = parseCookTimeMinutes(r.cook_time_minutes);
+  const image_url = normalizeRecipeImageUrl(r.image_url ?? "");
   const insertPayload = {
     title: r.title,
     ingredients: ingredients as any,
     method: r.method,
     serves,
     source_url: r.source_url ?? null,
-    image_url: r.image_url ?? null,
+    image_url,
     tags,
     meal_types,
     cook_time_minutes,
@@ -56,7 +58,7 @@ export async function saveRecipe(r: SaveRecipeInput): Promise<string> {
         ingredients: withServesMetaIngredient(ingredients, serves) as any,
         method: r.method,
         source_url: r.source_url ?? null,
-        image_url: r.image_url ?? null,
+        image_url,
         tags,
         meal_types,
         cook_time_minutes,

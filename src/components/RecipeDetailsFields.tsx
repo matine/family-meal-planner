@@ -1,3 +1,4 @@
+import { RecipeImageField } from "@/components/RecipeImageField";
 import { RecipeCookTimeField } from "@/components/RecipeCookTimeField";
 import { RecipeFormField } from "@/components/RecipeFormField";
 import { RecipeMealTypesPicker } from "@/components/RecipeMealTypesPicker";
@@ -21,6 +22,9 @@ export function RecipeDetailsFields({
   onMealTypesChange,
   tags,
   onTagsChange,
+  imageUrl,
+  onImageUrlChange,
+  recipeId,
   disabled,
   titleRequired,
   titleInvalid,
@@ -38,6 +42,9 @@ export function RecipeDetailsFields({
   onMealTypesChange: (value: RecipeMealType[]) => void;
   tags: RecipeTag[];
   onTagsChange: (value: RecipeTag[]) => void;
+  imageUrl: string;
+  onImageUrlChange: (value: string) => void;
+  recipeId?: string;
   disabled?: boolean;
   titleRequired?: boolean;
   titleInvalid?: boolean;
@@ -59,16 +66,6 @@ export function RecipeDetailsFields({
         />
       </RecipeFormField>
 
-      <RecipeFormField label="Serves">
-        <Input
-          value={serves}
-          onChange={(e) => onServesChange(e.target.value)}
-          className="w-full"
-          placeholder="e.g. 4"
-          disabled={disabled}
-        />
-      </RecipeFormField>
-
       <RecipeFormField label="Source link">
         <Input
           type="url"
@@ -76,6 +73,24 @@ export function RecipeDetailsFields({
           onChange={(e) => onSourceUrlChange(e.target.value)}
           className="w-full"
           placeholder="https://..."
+          disabled={disabled}
+        />
+      </RecipeFormField>
+
+      <RecipeImageField
+        value={imageUrl}
+        onChange={onImageUrlChange}
+        sourceUrl={sourceUrl}
+        recipeId={recipeId}
+        disabled={disabled}
+      />
+
+      <RecipeFormField label="Serves">
+        <Input
+          value={serves}
+          onChange={(e) => onServesChange(e.target.value)}
+          className="w-full"
+          placeholder="e.g. 4"
           disabled={disabled}
         />
       </RecipeFormField>

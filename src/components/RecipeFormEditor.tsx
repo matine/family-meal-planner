@@ -12,6 +12,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import type { RecipeIngredient } from "@/hooks/useTable";
 import type { RecipeMealType } from "@/lib/recipe-meal-types";
+import { normalizeRecipeImageUrl } from "@/lib/recipe-image";
 import type { SaveRecipeInput } from "@/lib/save-recipe";
 import type { RecipeTag } from "@/lib/recipe-tags";
 import { toast } from "sonner";
@@ -34,6 +35,7 @@ export function RecipeFormEditor({
   initialTags = [],
   initialCookTimeMinutes = null,
   initialMealTypes = [],
+  initialImageUrl = "",
   initialIngredients,
   ingredientAutoSuggest = false,
   allowAddRemoveIngredients = true,
@@ -50,6 +52,7 @@ export function RecipeFormEditor({
   initialTags?: RecipeTag[];
   initialCookTimeMinutes?: number | null;
   initialMealTypes?: RecipeMealType[];
+  initialImageUrl?: string;
   initialIngredients: RecipeIngredient[];
   ingredientAutoSuggest?: boolean;
   allowAddRemoveIngredients?: boolean;
@@ -64,6 +67,7 @@ export function RecipeFormEditor({
   const [tags, setTags] = useState<RecipeTag[]>(initialTags);
   const [cookTimeMinutes, setCookTimeMinutes] = useState<number | null>(initialCookTimeMinutes);
   const [mealTypes, setMealTypes] = useState<RecipeMealType[]>(initialMealTypes);
+  const [imageUrl, setImageUrl] = useState(initialImageUrl);
   const [editRows, setEditRows] = useState<IngredientResolutionRow[]>(() =>
     ingredientsToRows(initialIngredients),
   );
@@ -106,6 +110,7 @@ export function RecipeFormEditor({
         tags,
         cook_time_minutes: cookTimeMinutes,
         meal_types: mealTypes,
+        image_url: normalizeRecipeImageUrl(imageUrl) ?? undefined,
       });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not save recipe");
@@ -162,6 +167,8 @@ export function RecipeFormEditor({
           onMealTypesChange={setMealTypes}
           tags={tags}
           onTagsChange={setTags}
+          imageUrl={imageUrl}
+          onImageUrlChange={setImageUrl}
           disabled={saving}
           titleRequired
           titleInvalid={titleInvalid}

@@ -63,6 +63,7 @@ import { cap } from "@/lib/text";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { RecipeDetailsFields } from "@/components/RecipeDetailsFields";
+import { normalizeRecipeImageUrl } from "@/lib/recipe-image";
 import { RecipeFormField } from "@/components/RecipeFormField";
 import { RecipePageActions, RecipeStickyToolbar } from "@/components/RecipeStickyToolbar";
 import { RecipeTagBadges } from "@/components/RecipeTagBadges";
@@ -116,6 +117,7 @@ function RecipeDetailPage() {
   const [tagsValue, setTagsValue] = useState<RecipeTag[]>([]);
   const [cookTimeValue, setCookTimeValue] = useState<number | null>(null);
   const [mealTypesValue, setMealTypesValue] = useState<RecipeMealType[]>([]);
+  const [imageUrlValue, setImageUrlValue] = useState("");
   const [editRows, setEditRows] = useState<IngredientResolutionRow[]>([]);
   const ingredientEditorRef = useRef<IngredientResolutionEditorHandle>(null);
   const [resolutionGate, setResolutionGate] = useState<IngredientResolutionGate>({
@@ -148,6 +150,7 @@ function RecipeDetailPage() {
     setTagsValue(parseRecipeTags(recipe.tags));
     setCookTimeValue(parseCookTimeMinutes(recipe.cook_time_minutes));
     setMealTypesValue(parseMealTypes(recipe.meal_types));
+    setImageUrlValue(recipe.image_url ?? "");
   }, [recipe]);
 
   if (!recipe) {
@@ -172,6 +175,7 @@ function RecipeDetailPage() {
     setTagsValue(parseRecipeTags(recipe.tags));
     setCookTimeValue(parseCookTimeMinutes(recipe.cook_time_minutes));
     setMealTypesValue(parseMealTypes(recipe.meal_types));
+    setImageUrlValue(recipe.image_url ?? "");
     setEditing(true);
   };
 
@@ -304,6 +308,7 @@ function RecipeDetailPage() {
     setTagsValue(parseRecipeTags(recipe.tags));
     setCookTimeValue(parseCookTimeMinutes(recipe.cook_time_minutes));
     setMealTypesValue(parseMealTypes(recipe.meal_types));
+    setImageUrlValue(recipe.image_url ?? "");
     setEditRows([]);
     setEditing(false);
   };
@@ -331,11 +336,13 @@ function RecipeDetailPage() {
 
       const serves = servesValue.trim() || null;
       const sourceUrl = sourceUrlValue.trim() || null;
+      const imageUrl = normalizeRecipeImageUrl(imageUrlValue);
       const ingredientsForSave = stripRecipeMetaIngredient(nextIngredients);
       const updatePayload = {
         title: nextTitle,
         serves,
         source_url: sourceUrl,
+        image_url: imageUrl,
         method: methodValue,
         ingredients: ingredientsForSave as any,
         tags: tagsValue,
@@ -360,6 +367,7 @@ function RecipeDetailPage() {
           .update({
             title: nextTitle,
             source_url: sourceUrl,
+            image_url: imageUrl,
             method: methodValue,
             ingredients: withServesMetaIngredient(ingredientsForSave, serves) as any,
             tags: tagsValue,
@@ -390,6 +398,7 @@ function RecipeDetailPage() {
                 title: nextTitle,
                 serves: servesSavedInMeta ? null : serves,
                 source_url: sourceUrl,
+                image_url: imageUrl,
                 method: methodValue,
                 tags: tagsValue,
                 cook_time_minutes: cookTimeValue,
@@ -474,27 +483,36 @@ function RecipeDetailPage() {
 
       <header className="flex flex-col gap-4">
         {editing ? (
-          <div className="w-full space-y-4">
-            <RecipeDetailsFields
-              title={titleValue}
-              onTitleChange={setTitleValue}
-              serves={servesValue}
-              onServesChange={setServesValue}
-              sourceUrl={sourceUrlValue}
-              onSourceUrlChange={setSourceUrlValue}
-              cookTimeMinutes={cookTimeValue}
-              onCookTimeChange={setCookTimeValue}
-              mealTypes={mealTypesValue}
-              onMealTypesChange={setMealTypesValue}
-              tags={tagsValue}
-              onTagsChange={setTagsValue}
-              disabled={saving}
-              titleRequired
-              titleInvalid={titleInvalid}
-            />
-          </div>
+          <RecipeDetailsFields
+            title={titleValue}
+            onTitleChange={setTitleValue}
+            serves={servesValue}
+            onServesChange={setServesValue}
+            sourceUrl={sourceUrlValue}
+            onSourceUrlChange={setSourceUrlValue}
+            cookTimeMinutes={cookTimeValue}
+            onCookTimeChange={setCookTimeValue}
+            mealTypes={mealTypesValue}
+            onMealTypesChange={setMealTypesValue}
+            tags={tagsValue}
+            onTagsChange={setTagsValue}
+            imageUrl={imageUrlValue}
+            onImageUrlChange={setImageUrlValue}
+            recipeId={recipe.id}
+            disabled={saving}
+            titleRequired
+            titleInvalid={titleInvalid}
+          />
         ) : (
-          <div>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+            {recipe.image_url && (
+              <img
+                src={recipe.image_url}
+                alt=""
+                className="h-32 w-32 shrink-0 rounded-xl border object-cover"
+              />
+            )}
+            <div className="min-w-0 flex-1">
             <h1 className="text-3xl font-bold tracking-tight">{recipe.title}</h1>
             {recipe.source_url && (
               <div className="mt-2">
@@ -519,6 +537,7 @@ function RecipeDetailPage() {
               serves={recipeServes}
               className="mt-3"
             />
+            </div>
           </div>
         )}
       </header>

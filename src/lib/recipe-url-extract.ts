@@ -319,3 +319,18 @@ export function extractRecipeFromUrlHtml(html: string, _pageUrl: string): UrlExt
 export function draftLooksComplete(d: RecipeDraft): boolean {
   return d.title.trim().length > 0 && d.ingredients.length >= 1 && d.method.trim().length >= 20;
 }
+
+/** Fetch og:image (or twitter:image) from a recipe source page. */
+export async function fetchSourcePageOgImage(pageUrl: string): Promise<string | null> {
+  try {
+    const res = await fetch(pageUrl, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; FamilyKitchenBot/1.0)" },
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+    const image = extractOg(html).image?.trim();
+    return image || null;
+  } catch {
+    return null;
+  }
+}
