@@ -178,7 +178,7 @@ function RecipesPage() {
             />
             <Input
               type="search"
-              placeholder="Search recipes by title, ingredients, tags…"
+              placeholder="Search recipes"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"

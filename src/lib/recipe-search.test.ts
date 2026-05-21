@@ -21,14 +21,12 @@ describe("recipeMatchesSearch", () => {
     expect(recipeMatchesSearch(baseRecipe, "")).toBe(true);
   });
 
-  it("matches title and ingredients", () => {
+  it("matches title only", () => {
     expect(recipeMatchesSearch(baseRecipe, "chicken")).toBe(true);
-    expect(recipeMatchesSearch(baseRecipe, "pastry")).toBe(true);
-  });
-
-  it("matches tags and meal types", () => {
-    expect(recipeMatchesSearch(baseRecipe, "family")).toBe(true);
-    expect(recipeMatchesSearch(baseRecipe, "dinner")).toBe(true);
+    expect(recipeMatchesSearch(baseRecipe, "pie")).toBe(true);
+    expect(recipeMatchesSearch(baseRecipe, "pastry")).toBe(false);
+    expect(recipeMatchesSearch(baseRecipe, "family")).toBe(false);
+    expect(recipeMatchesSearch(baseRecipe, "dinner")).toBe(false);
   });
 
   it("returns false when no match", () => {
