@@ -60,8 +60,10 @@ export default defineConfig(({ command, mode }) => {
         navigateFallback: "/",
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
       },
+      // Dev server serves modules on the fly; precaching dev-dist has no matching
+      // static assets and triggers Workbox glob warnings. Test PWA via build + preview.
       devOptions: {
-        enabled: true,
+        enabled: false,
       },
     }),
   ];
