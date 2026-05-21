@@ -42,6 +42,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { requireOnline } from "@/lib/offline/require-online";
 import { toast } from "sonner";
 
 type MealType = "breakfast" | "lunch" | "dinner";
@@ -132,6 +133,7 @@ function RecipesPage() {
     cookTimeFilter != null;
 
   const handleAddToPlanner = async (recipeId: string, mealType: MealType) => {
+    if (!requireOnline()) return;
     await quickAddToPlanner(recipeId, mealType);
     refreshPlan();
   };
@@ -154,7 +156,10 @@ function RecipesPage() {
             {ADD_RECIPE_OPTIONS.map(({ mode, label, icon: Icon }) => (
               <DropdownMenuItem
                 key={mode}
-                onSelect={() => navigate({ to: "/recipes/new/$mode", params: { mode } })}
+                onSelect={() => {
+                  if (!requireOnline()) return;
+                  navigate({ to: "/recipes/new/$mode", params: { mode } });
+                }}
               >
                 <Icon className="mr-2 h-4 w-4" />
                 {label}

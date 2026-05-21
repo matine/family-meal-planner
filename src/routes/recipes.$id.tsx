@@ -63,7 +63,10 @@ import { cap } from "@/lib/text";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { RecipeDetailsFields } from "@/components/RecipeDetailsFields";
+import { getCachedRecipe } from "@/lib/offline/db";
 import { normalizeRecipeImageUrl } from "@/lib/recipe-image";
+import { isOnline } from "@/lib/offline/online";
+import { requireOnline } from "@/lib/offline/require-online";
 import { RecipeFormField } from "@/components/RecipeFormField";
 import { RecipePageActions, RecipeStickyToolbar } from "@/components/RecipeStickyToolbar";
 import { RecipeTagBadges } from "@/components/RecipeTagBadges";
@@ -131,14 +134,23 @@ function RecipeDetailPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    supabase
-      .from("recipes")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle()
-      .then(({ data }) => {
-        setRecipe(data as Recipe | null);
-      });
+    let cancelled = false;
+    const load = async () => {
+      if (isOnline()) {
+        const { data } = await supabase.from("recipes").select("*").eq("id", id).maybeSingle();
+        if (!cancelled) setRecipe((data as Recipe | null) ?? null);
+      } else {
+        const cached = await getCachedRecipe(id);
+        if (!cancelled) setRecipe(cached ?? null);
+      }
+    };
+    void load();
+    const onReconnect = () => void load();
+    window.addEventListener("online", onReconnect);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("online", onReconnect);
+    };
   }, [id]);
 
   useEffect(() => {
@@ -158,6 +170,7 @@ function RecipeDetailPage() {
   }
 
   const beginEdit = () => {
+    if (!requireOnline()) return;
     setResolutionGate({ allMatched: false, aiLoading: false });
     const current = stripRecipeMetaIngredient(
       (recipe.ingredients as RecipeIngredient[] | null) ?? [],
@@ -280,6 +293,7 @@ function RecipeDetailPage() {
   };
 
   const addToPlanner = async (mealType: MealType) => {
+    if (!requireOnline()) return;
     const { error } = await supabase
       .from("meal_plan")
       .insert({ recipe_id: recipe.id, meal_type: mealType });
@@ -289,6 +303,7 @@ function RecipeDetailPage() {
   };
 
   const handleDelete = async () => {
+    if (!requireOnline()) return;
     setDeleting(true);
     const { error } = await supabase.from("recipes").delete().eq("id", recipe.id);
     if (error) {
@@ -314,6 +329,7 @@ function RecipeDetailPage() {
   };
 
   const saveEdit = async () => {
+    if (!requireOnline()) return;
     const nextTitle = titleValue.trim();
     if (!nextTitle) return toast.error("Recipe title is required");
 

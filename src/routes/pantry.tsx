@@ -36,6 +36,8 @@ import { resolveOrCreateCanonical, type CanonicalLite } from "@/lib/canonical";
 import { normalize } from "@/lib/ingredient-match";
 import { isInPantry } from "@/lib/pantry";
 import { cap } from "@/lib/text";
+import { useOffline } from "@/contexts/OfflineContext";
+import { requireOnline } from "@/lib/offline/require-online";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -66,6 +68,7 @@ async function insertPantryItemOnShoppingList(
 }
 
 function PantryPage() {
+  const { online } = useOffline();
   const { rows, refresh } = useTable<Ingredient>("ingredients");
   const { rows: canonicals } = useCanonicals();
   const { rows: categories } = useCategories();
@@ -120,6 +123,7 @@ function PantryPage() {
 
   const add = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!requireOnline()) return;
     if (!name.trim()) return;
     try {
       const can = await resolveOrCreateCanonical(name, canonicals);
@@ -151,6 +155,7 @@ function PantryPage() {
   const [pendingSendToShopping, setPendingSendToShopping] = useState<Ingredient | null>(null);
 
   const confirmSendToShopping = async () => {
+    if (!requireOnline()) return;
     const item = pendingSendToShopping;
     if (!item) return;
     const { error } = await insertPantryItemOnShoppingList(item, canonicalById);
@@ -163,6 +168,7 @@ function PantryPage() {
   };
 
   const confirmDelete = async (addToShopping: boolean) => {
+    if (!requireOnline()) return;
     const item = pendingDelete;
     if (!item) return;
     if (addToShopping) {
@@ -273,7 +279,10 @@ function PantryPage() {
 
       <form
         onSubmit={add}
-        className="flex flex-col gap-2 rounded-2xl border bg-card p-4 shadow-[var(--shadow-card)] sm:flex-row sm:flex-wrap"
+        className={cn(
+          "flex flex-col gap-2 rounded-2xl border bg-card p-4 shadow-[var(--shadow-card)] sm:flex-row sm:flex-wrap",
+          !online && "pointer-events-none opacity-50",
+        )}
       >
         <IngredientPredictiveInput
           canonicals={canonicals}
@@ -282,14 +291,16 @@ function PantryPage() {
           onPick={(c) => applyCategoryFromCanonical(c)}
           placeholder="Ingredient name"
           className="flex-1 sm:min-w-48"
+          disabled={!online}
         />
         <Input
           placeholder="Amount (optional)"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           className="sm:w-36"
+          disabled={!online}
         />
-        <Select value={category || undefined} onValueChange={setCategory}>
+        <Select value={category || undefined} onValueChange={setCategory} disabled={!online}>
           <SelectTrigger className="sm:w-56">
             <SelectValue placeholder={categoryNames.length ? "Category" : "No categories"} />
           </SelectTrigger>
@@ -301,7 +312,7 @@ function PantryPage() {
             ))}
           </SelectContent>
         </Select>
-        <Button type="submit" className="gap-1.5">
+        <Button type="submit" className="gap-1.5" disabled={!online}>
           <Plus className="h-4 w-4" /> Add
         </Button>
       </form>
@@ -347,6 +358,7 @@ function PantryPage() {
                           itemRefs.current[i.id] = el;
                         }}
                         highlight={highlightId === i.id}
+                        allowEdit={online}
                       />
                     ))}
                   </ul>
@@ -425,6 +437,7 @@ function PantryRow({
   onSendToShopping,
   registerRef,
   highlight,
+  allowEdit,
 }: {
   item: Ingredient;
   displayName: string;
@@ -434,12 +447,17 @@ function PantryRow({
   onSendToShopping: () => void;
   registerRef: (el: HTMLLIElement | null) => void;
   highlight: boolean;
+  allowEdit: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(item.amount ?? "");
   const itemCategory = item.category ?? UNCATEGORIZED;
 
   const save = async () => {
+    if (!requireOnline()) {
+      setEditing(false);
+      return;
+    }
     const next = value.trim() || null;
     if (next !== (item.amount ?? null)) {
       const { error } = await supabase
@@ -458,6 +476,7 @@ function PantryRow({
   };
 
   const updateCategory = async (cat: string) => {
+    if (!requireOnline()) return;
     const { error } = await supabase
       .from("ingredients")
       .update({ category: cat })
@@ -507,8 +526,9 @@ function PantryRow({
             ) : (
               <button
                 type="button"
-                onClick={() => setEditing(true)}
-                className="-ml-1 rounded px-1 text-left text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                onClick={() => allowEdit && setEditing(true)}
+                disabled={!allowEdit}
+                className="-ml-1 rounded px-1 text-left text-xs text-muted-foreground hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
                 aria-label={`Edit amount for ${displayName}`}
               >
                 {item.amount || <span className="italic opacity-60">add amount</span>}
@@ -516,41 +536,43 @@ function PantryRow({
             )}
           </div>
       </div>
-      <div className="flex items-center gap-1">
-        <Select value={itemCategory} onValueChange={updateCategory}>
-          <SelectTrigger
-            aria-label={`Change category for ${displayName}`}
-            className="h-8 w-8 justify-center border-none bg-transparent p-0 text-muted-foreground shadow-none hover:bg-muted hover:text-foreground [&>svg:last-child]:hidden"
+      {allowEdit && (
+        <div className="flex items-center gap-1">
+          <Select value={itemCategory} onValueChange={updateCategory}>
+            <SelectTrigger
+              aria-label={`Change category for ${displayName}`}
+              className="h-8 w-8 justify-center border-none bg-transparent p-0 text-muted-foreground shadow-none hover:bg-muted hover:text-foreground [&>svg:last-child]:hidden"
+            >
+              <Tag className="h-4 w-4" />
+              <span className="sr-only">{itemCategory}</span>
+            </SelectTrigger>
+            <SelectContent>
+              {categoryNames.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <button
+            type="button"
+            onClick={onSendToShopping}
+            aria-label={`Add ${displayName} to shopping list`}
+            title="Add to shopping list"
+            className="rounded-lg p-2 text-muted-foreground transition hover:bg-primary/10 hover:text-primary"
           >
-            <Tag className="h-4 w-4" />
-            <span className="sr-only">{itemCategory}</span>
-          </SelectTrigger>
-          <SelectContent>
-            {categoryNames.map((c) => (
-              <SelectItem key={c} value={c}>
-                {c}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <button
-          type="button"
-          onClick={onSendToShopping}
-          aria-label={`Add ${displayName} to shopping list`}
-          title="Add to shopping list"
-          className="rounded-lg p-2 text-muted-foreground transition hover:bg-primary/10 hover:text-primary"
-        >
-          <ShoppingBasket className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          onClick={onRemove}
-          aria-label={`Remove ${displayName}`}
-          className="rounded-lg p-2 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
-      </div>
+            <ShoppingBasket className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label={`Remove ${displayName}`}
+            className="rounded-lg p-2 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      )}
     </li>
   );
 }

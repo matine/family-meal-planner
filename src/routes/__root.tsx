@@ -28,7 +28,11 @@ export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
+      { name: "theme-color", content: "#c45c42" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-title", content: "Kitchen" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "default" },
       { title: "Family Kitchen — Meal Planning Made Simple" },
       { name: "description", content: "Plan family meals, track pantry ingredients, save favourite recipes and build a smart shopping list." },
       { name: "author", content: "Family Kitchen" },
@@ -44,6 +48,8 @@ export const Route = createRootRoute({
         rel: "stylesheet",
         href: appCss,
       },
+      { rel: "icon", href: "/icon.svg", type: "image/svg+xml" },
+      { rel: "apple-touch-icon", href: "/icon.svg" },
     ],
   }),
   shellComponent: RootShell,
@@ -66,18 +72,25 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 import { AppNav } from "@/components/AppNav";
+import { OfflineBanner } from "@/components/OfflineBanner";
+import { PwaRegister } from "@/components/PwaRegister";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Toaster } from "@/components/ui/sonner";
+import { OfflineProvider } from "@/contexts/OfflineContext";
 
 function RootComponent() {
   return (
-    <div className="flex min-h-screen flex-col">
-      <AppNav />
-      <main className="mx-auto w-full max-w-5xl flex-1 px-3 py-8">
-        <Outlet />
-      </main>
-      <SiteFooter />
-      <Toaster richColors position="bottom-center" />
-    </div>
+    <OfflineProvider>
+      <PwaRegister />
+      <div className="flex min-h-screen flex-col">
+        <AppNav />
+        <OfflineBanner />
+        <main className="mx-auto w-full max-w-5xl flex-1 px-3 py-8">
+          <Outlet />
+        </main>
+        <SiteFooter />
+        <Toaster richColors position="bottom-center" />
+      </div>
+    </OfflineProvider>
   );
 }
