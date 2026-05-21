@@ -16,6 +16,8 @@ import { Route as IngredientsRouteImport } from './routes/ingredients'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RecipesIndexRouteImport } from './routes/recipes.index'
 import { Route as RecipesIdRouteImport } from './routes/recipes.$id'
+import { Route as RecipesNewReviewRouteImport } from './routes/recipes.new.review'
+import { Route as RecipesNewModeRouteImport } from './routes/recipes.new.$mode'
 
 const ShoppingRoute = ShoppingRouteImport.update({
   id: '/shopping',
@@ -52,6 +54,16 @@ const RecipesIdRoute = RecipesIdRouteImport.update({
   path: '/recipes/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RecipesNewReviewRoute = RecipesNewReviewRouteImport.update({
+  id: '/recipes/new/review',
+  path: '/recipes/new/review',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecipesNewModeRoute = RecipesNewModeRouteImport.update({
+  id: '/recipes/new/$mode',
+  path: '/recipes/new/$mode',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -61,6 +73,8 @@ export interface FileRoutesByFullPath {
   '/shopping': typeof ShoppingRoute
   '/recipes/$id': typeof RecipesIdRoute
   '/recipes/': typeof RecipesIndexRoute
+  '/recipes/new/$mode': typeof RecipesNewModeRoute
+  '/recipes/new/review': typeof RecipesNewReviewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -70,6 +84,8 @@ export interface FileRoutesByTo {
   '/shopping': typeof ShoppingRoute
   '/recipes/$id': typeof RecipesIdRoute
   '/recipes': typeof RecipesIndexRoute
+  '/recipes/new/$mode': typeof RecipesNewModeRoute
+  '/recipes/new/review': typeof RecipesNewReviewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -80,6 +96,8 @@ export interface FileRoutesById {
   '/shopping': typeof ShoppingRoute
   '/recipes/$id': typeof RecipesIdRoute
   '/recipes/': typeof RecipesIndexRoute
+  '/recipes/new/$mode': typeof RecipesNewModeRoute
+  '/recipes/new/review': typeof RecipesNewReviewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -91,6 +109,8 @@ export interface FileRouteTypes {
     | '/shopping'
     | '/recipes/$id'
     | '/recipes/'
+    | '/recipes/new/$mode'
+    | '/recipes/new/review'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -100,6 +120,8 @@ export interface FileRouteTypes {
     | '/shopping'
     | '/recipes/$id'
     | '/recipes'
+    | '/recipes/new/$mode'
+    | '/recipes/new/review'
   id:
     | '__root__'
     | '/'
@@ -109,6 +131,8 @@ export interface FileRouteTypes {
     | '/shopping'
     | '/recipes/$id'
     | '/recipes/'
+    | '/recipes/new/$mode'
+    | '/recipes/new/review'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -119,6 +143,8 @@ export interface RootRouteChildren {
   ShoppingRoute: typeof ShoppingRoute
   RecipesIdRoute: typeof RecipesIdRoute
   RecipesIndexRoute: typeof RecipesIndexRoute
+  RecipesNewModeRoute: typeof RecipesNewModeRoute
+  RecipesNewReviewRoute: typeof RecipesNewReviewRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -172,6 +198,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RecipesIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/recipes/new/review': {
+      id: '/recipes/new/review'
+      path: '/recipes/new/review'
+      fullPath: '/recipes/new/review'
+      preLoaderRoute: typeof RecipesNewReviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recipes/new/$mode': {
+      id: '/recipes/new/$mode'
+      path: '/recipes/new/$mode'
+      fullPath: '/recipes/new/$mode'
+      preLoaderRoute: typeof RecipesNewModeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -183,6 +223,8 @@ const rootRouteChildren: RootRouteChildren = {
   ShoppingRoute: ShoppingRoute,
   RecipesIdRoute: RecipesIdRoute,
   RecipesIndexRoute: RecipesIndexRoute,
+  RecipesNewModeRoute: RecipesNewModeRoute,
+  RecipesNewReviewRoute: RecipesNewReviewRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

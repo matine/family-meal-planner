@@ -28,7 +28,7 @@ export function approxTokensFromChars(chars: number): number {
   return Math.max(0, Math.ceil(chars / 4));
 }
 
-/** Structured JSON log line for Workers-friendly observability. */
+/** Structured JSON log line for server observability. */
 export function logImportEvent(payload: ImportTelemetryPayload): void {
   const line = JSON.stringify({ ts: new Date().toISOString(), ...payload });
   if (payload.outcome === "error") console.warn(`[import] ${line}`);

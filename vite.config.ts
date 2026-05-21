@@ -16,7 +16,9 @@ export default defineConfig(({ command, mode }) => {
   const plugins = [
     tailwindcss(),
     tsConfigPaths({ projects: ["./tsconfig.json"] }),
-    ...(command === "build" ? [nitro()] : []),
+    ...(command === "build"
+      ? [nitro({ preset: process.env.VERCEL ? "vercel" : "node-server" })]
+      : []),
     tanstackStart({
       importProtection: {
         behavior: "error",
@@ -31,7 +33,7 @@ export default defineConfig(({ command, mode }) => {
       registerType: "autoUpdate",
       includeAssets: ["icon.svg"],
       manifest: {
-        name: "Bowbrier Kitchen",
+        name: "Meal planner",
         short_name: "Kitchen",
         description:
           "Plan family meals, track pantry ingredients, save favourite recipes and build a smart shopping list.",

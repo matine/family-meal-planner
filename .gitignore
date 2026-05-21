@@ -12,6 +12,7 @@ dist
 dist-ssr
 dev-dist
 .output
+.vercel
 .vinxi
 .tanstack/**
 .nitro
