@@ -19,6 +19,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { IngredientPredictiveInput } from "@/components/IngredientPredictiveInput";
 import { resolveOrCreateCanonical } from "@/lib/canonical";
 import { isInPantry } from "@/lib/pantry";
@@ -96,10 +107,12 @@ function ShoppingPage() {
     refresh();
   };
 
-  const clearChecked = async () => {
+  const deleteSelected = async () => {
     if (!requireOnline()) return;
     await supabase.from("shopping_list").delete().eq("checked", true);
-    toast.success("Cleared checked items");
+    toast.success(
+      checkedCount === 1 ? "Deleted 1 item" : `Deleted ${checkedCount} items`,
+    );
     refresh();
   };
 
@@ -219,9 +232,31 @@ function ShoppingPage() {
               <Button onClick={moveCheckedToPantry} variant="default">
                 Move {checkedCount} to pantry
               </Button>
-              <Button onClick={clearChecked} variant="outline">
-                Clear checked
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive">
+                    Delete {checkedCount} selected
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete selected items?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently remove {checkedCount} item
+                      {checkedCount === 1 ? "" : "s"} from your shopping list. This cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => void deleteSelected()}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           )}
         </>
