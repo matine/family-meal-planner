@@ -41,10 +41,12 @@ describe("formatCookTime", () => {
 });
 
 describe("recipeMatchesTagFilter", () => {
-  it("matches any selected tag", () => {
+  it("matches only when recipe has all selected tags", () => {
     const tags = parseRecipeTags(["Low effort", "Family"]);
     expect(recipeMatchesTagFilter(tags, ["Keto"])).toBe(false);
     expect(recipeMatchesTagFilter(tags, ["Low effort"])).toBe(true);
+    expect(recipeMatchesTagFilter(tags, ["Low effort", "Family"])).toBe(true);
+    expect(recipeMatchesTagFilter(tags, ["Low effort", "Keto"])).toBe(false);
     expect(recipeMatchesTagFilter(tags, [])).toBe(true);
   });
 });

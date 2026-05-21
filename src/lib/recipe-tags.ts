@@ -83,7 +83,7 @@ export function formatCookTimeFilter(maxMinutes: CookTimeFilterMax): string {
 
 export function recipeMatchesTagFilter(recipeTags: RecipeTag[], selectedTags: RecipeTag[]): boolean {
   if (selectedTags.length === 0) return true;
-  return selectedTags.some((tag) => recipeTags.includes(tag));
+  return selectedTags.every((tag) => recipeTags.includes(tag));
 }
 
 export function recipeMatchesCookTimeFilter(
