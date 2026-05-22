@@ -24,8 +24,20 @@ export function safeRedirectPath(path: string | undefined): string {
   return path;
 }
 
+/** App origin for OAuth callbacks — prefer VITE_APP_URL in production (set on Vercel). */
+export function getAppOrigin(): string {
+  const configured = import.meta.env.VITE_APP_URL?.trim().replace(/\/$/, "");
+  if (configured) return configured;
+  if (typeof window !== "undefined") return window.location.origin;
+  return "";
+}
+
 export async function signInWithGoogle(nextPath = "/"): Promise<{ error: Error | null }> {
-  const redirectTo = `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(safeRedirectPath(nextPath))}`;
+  const origin = getAppOrigin();
+  if (!origin) {
+    return { error: new Error("App URL is not configured") };
+  }
+  const redirectTo = `${origin}/auth/callback?redirect=${encodeURIComponent(safeRedirectPath(nextPath))}`;
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: { redirectTo },
