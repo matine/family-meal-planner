@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, type RefObject } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import {
@@ -33,8 +33,14 @@ export type RecipeIngredient = {
 
 const REALTIME_DEBOUNCE_MS = 300;
 
+export type UseTableOptions = {
+  /** When true, debounced realtime refetches are skipped (e.g. after local optimistic writes). */
+  pauseRealtimeRef?: RefObject<boolean>;
+};
+
 export function useTable<T extends { id: string; created_at: string }>(
   table: "ingredients" | "recipes" | "meal_plan" | "shopping_list",
+  options?: UseTableOptions,
 ) {
   const [rows, setRows] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,13 +80,17 @@ export function useTable<T extends { id: string; created_at: string }>(
     }
   }, [table, loadFromCache]);
 
+  const pauseRealtimeRef = options?.pauseRealtimeRef;
+
   const scheduleRealtimeRefresh = useCallback(() => {
+    if (pauseRealtimeRef?.current) return;
     if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
     realtimeTimerRef.current = setTimeout(() => {
       realtimeTimerRef.current = null;
+      if (pauseRealtimeRef?.current) return;
       void refresh();
     }, REALTIME_DEBOUNCE_MS);
-  }, [refresh]);
+  }, [refresh, pauseRealtimeRef]);
 
   useEffect(() => {
     void refresh();

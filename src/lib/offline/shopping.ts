@@ -31,9 +31,9 @@ export async function toggleShoppingItemChecked(
       );
       throw new Error(error.message);
     }
-    // Keep IndexedDB in sync for offline later, without triggering a global refetch.
-    await patchShoppingItemChecked(item.id, nextChecked);
-    await clearOutboxForShoppingRow(item.id);
+    // Keep IndexedDB in sync for offline later — don't block the UI on cache writes.
+    void patchShoppingItemChecked(item.id, nextChecked);
+    void clearOutboxForShoppingRow(item.id);
     return;
   }
 

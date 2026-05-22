@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2, ShoppingBasket, CalendarCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -13,7 +13,6 @@ import { useCanonicals } from "@/hooks/useCanonicals";
 import { useOffline } from "@/contexts/OfflineContext";
 import {
   buildPlannerIngredientIndex,
-  plannerRecipesForShoppingItem,
   type PlannerRecipeRef,
 } from "@/lib/planner-ingredients";
 import { Input } from "@/components/ui/input";
@@ -32,6 +31,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { IngredientPredictiveInput } from "@/components/IngredientPredictiveInput";
 import { resolveOrCreateCanonical } from "@/lib/canonical";
+import { normalize } from "@/lib/ingredient-match";
 import { isInPantry } from "@/lib/pantry";
 import { requireOnline } from "@/lib/offline/require-online";
 import { toggleShoppingItemChecked } from "@/lib/offline/shopping";
@@ -44,9 +44,14 @@ export const Route = createFileRoute("/")({
   head: () => ({ meta: [{ title: "Shopping List — Family Kitchen" }] }),
 });
 
+const REALTIME_PAUSE_MS = 600;
+
 function ShoppingPage() {
   const { online } = useOffline();
-  const { rows, refresh, setRows } = useTable<ShoppingItem>("shopping_list");
+  const pauseShoppingRealtimeRef = useRef(false);
+  const { rows, refresh, setRows } = useTable<ShoppingItem>("shopping_list", {
+    pauseRealtimeRef: pauseShoppingRealtimeRef,
+  });
   const { rows: pantryRows } = useTable<Ingredient>("ingredients");
   const { rows: planRows } = useTable<MealPlanRow>("meal_plan");
   const { rows: recipes } = useTable<Recipe>("recipes");
@@ -63,7 +68,7 @@ function ShoppingPage() {
   }, [planRows, recipes]);
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
-  const togglingIds = useRef(new Set<string>());
+  const pauseRealtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const displayName = (it: ShoppingItem) =>
     cap(it.canonical_id ? (canonicalById.get(it.canonical_id) ?? it.name) : it.name);
@@ -87,19 +92,33 @@ function ShoppingPage() {
     }
   };
 
-  const toggle = async (item: ShoppingItem, nextChecked: boolean) => {
-    if (togglingIds.current.has(item.id)) return;
-    togglingIds.current.add(item.id);
-    try {
-      await toggleShoppingItemChecked(item, nextChecked, (updater) => {
+  const pauseShoppingRealtime = useCallback(() => {
+    pauseShoppingRealtimeRef.current = true;
+    if (pauseRealtimeTimerRef.current) clearTimeout(pauseRealtimeTimerRef.current);
+    pauseRealtimeTimerRef.current = setTimeout(() => {
+      pauseRealtimeTimerRef.current = null;
+      pauseShoppingRealtimeRef.current = false;
+    }, REALTIME_PAUSE_MS);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (pauseRealtimeTimerRef.current) clearTimeout(pauseRealtimeTimerRef.current);
+    },
+    [],
+  );
+
+  const toggle = useCallback(
+    (item: ShoppingItem, nextChecked: boolean) => {
+      pauseShoppingRealtime();
+      void toggleShoppingItemChecked(item, nextChecked, (updater) => {
         setRows((prev) => updater(prev));
+      }).catch((e: unknown) => {
+        toast.error(e instanceof Error ? e.message : "Could not update item");
       });
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Could not update item");
-    } finally {
-      togglingIds.current.delete(item.id);
-    }
-  };
+    },
+    [pauseShoppingRealtime, setRows],
+  );
 
   const remove = async (id: string) => {
     if (!requireOnline()) return;
@@ -219,8 +238,8 @@ function ShoppingPage() {
                 key={it.id}
                 item={it}
                 displayName={displayName(it)}
-                plannerRecipes={plannerRecipesForShoppingItem(plannerIngredientIndex, it)}
-                onToggle={(checked) => void toggle(it, checked)}
+                plannerIngredientIndex={plannerIngredientIndex}
+                onToggle={(checked) => toggle(it, checked)}
                 onRemove={() => remove(it.id)}
                 allowEdit={online}
               />
@@ -265,23 +284,41 @@ function ShoppingPage() {
   );
 }
 
-function ShoppingRow({
+const ShoppingRow = memo(function ShoppingRow({
   item,
   displayName,
-  plannerRecipes,
+  plannerIngredientIndex,
   onToggle,
   onRemove,
   allowEdit,
 }: {
   item: ShoppingItem;
   displayName: string;
-  plannerRecipes: PlannerRecipeRef[];
+  plannerIngredientIndex: Map<string, PlannerRecipeRef[]>;
   onToggle: (checked: boolean) => void;
   onRemove: () => void;
   allowEdit: boolean;
 }) {
+  const [checked, setChecked] = useState(item.checked);
   const [editingAmount, setEditingAmount] = useState(false);
   const [amountValue, setAmountValue] = useState(item.amount ?? "");
+
+  useEffect(() => {
+    setChecked(item.checked);
+  }, [item.checked]);
+
+  useEffect(() => {
+    setAmountValue(item.amount ?? "");
+  }, [item.amount]);
+
+  const plannerRecipes = useMemo(() => {
+    if (item.canonical_id) {
+      return plannerIngredientIndex.get(item.canonical_id) ?? [];
+    }
+    const norm = normalize(item.name);
+    if (!norm) return [];
+    return plannerIngredientIndex.get(`name:${norm}`) ?? [];
+  }, [item.canonical_id, item.name, plannerIngredientIndex]);
 
   const saveAmount = async () => {
     if (!requireOnline()) {
@@ -308,13 +345,17 @@ function ShoppingRow({
   return (
     <li className="group flex items-center gap-3 px-4 py-3">
       <Checkbox
-        checked={item.checked}
-        onCheckedChange={(checked) => onToggle(checked === true)}
+        checked={checked}
+        onCheckedChange={(next) => {
+          const value = next === true;
+          setChecked(value);
+          onToggle(value);
+        }}
         className="h-5 w-5"
       />
-      <div className={cn("flex-1", item.checked && "text-muted-foreground")}>
+      <div className={cn("flex-1", checked && "text-muted-foreground")}>
         <div className="flex items-center gap-2">
-          <span className={cn("font-medium", item.checked && "line-through")}>{displayName}</span>
+          <span className={cn("font-medium", checked && "line-through")}>{displayName}</span>
           {editingAmount ? (
             <Input
               autoFocus
@@ -375,4 +416,4 @@ function ShoppingRow({
       )}
     </li>
   );
-}
+});
