@@ -34,14 +34,26 @@ export const Route = createRootRoute({
       { name: "apple-mobile-web-app-title", content: "Kitchen" },
       { name: "apple-mobile-web-app-status-bar-style", content: "default" },
       { title: "Family Kitchen — Meal Planning Made Simple" },
-      { name: "description", content: "Plan family meals, track pantry ingredients, save favourite recipes and build a smart shopping list." },
+      {
+        name: "description",
+        content:
+          "Plan family meals, track pantry ingredients, save favourite recipes and build a smart shopping list.",
+      },
       { name: "author", content: "Family Kitchen" },
       { property: "og:title", content: "Family Kitchen — Meal Planning Made Simple" },
-      { property: "og:description", content: "Plan family meals, track pantry ingredients, save favourite recipes and build a smart shopping list." },
+      {
+        property: "og:description",
+        content:
+          "Plan family meals, track pantry ingredients, save favourite recipes and build a smart shopping list.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:title", content: "Family Kitchen — Meal Planning Made Simple" },
-      { name: "twitter:description", content: "Plan family meals, track pantry ingredients, save favourite recipes and build a smart shopping list." },
+      {
+        name: "twitter:description",
+        content:
+          "Plan family meals, track pantry ingredients, save favourite recipes and build a smart shopping list.",
+      },
     ],
     links: [
       {
@@ -71,26 +83,51 @@ function RootShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+import { useLocation } from "@tanstack/react-router";
 import { AppNav } from "@/components/AppNav";
+import { AuthGate } from "@/components/AuthGate";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { PwaRegister } from "@/components/PwaRegister";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Toaster } from "@/components/ui/sonner";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { OfflineProvider } from "@/contexts/OfflineContext";
+import { isPublicAuthPath } from "@/lib/auth";
 
-function RootComponent() {
+function AppShell() {
+  const { session } = useAuth();
+  const { pathname } = useLocation();
+  const isPublic = isPublicAuthPath(pathname);
+  const showChrome = Boolean(session) && !isPublic;
+
   return (
     <OfflineProvider>
       <PwaRegister />
       <div className="flex min-h-screen flex-col">
-        <AppNav />
-        <OfflineBanner />
-        <main className="mx-auto w-full max-w-5xl flex-1 px-3 py-8">
+        {showChrome && <AppNav />}
+        {showChrome && <OfflineBanner />}
+        <main
+          className={
+            showChrome
+              ? "mx-auto w-full max-w-5xl flex-1 px-3 py-8"
+              : "mx-auto w-full max-w-5xl flex-1"
+          }
+        >
           <Outlet />
         </main>
-        <SiteFooter />
+        {showChrome && <SiteFooter />}
         <Toaster richColors position="bottom-center" />
       </div>
     </OfflineProvider>
+  );
+}
+
+function RootComponent() {
+  return (
+    <AuthProvider>
+      <AuthGate>
+        <AppShell />
+      </AuthGate>
+    </AuthProvider>
   );
 }
