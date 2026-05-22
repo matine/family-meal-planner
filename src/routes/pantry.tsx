@@ -35,6 +35,12 @@ import { CategoryManager } from "@/components/CategoryManager";
 import { resolveOrCreateCanonical, type CanonicalLite } from "@/lib/canonical";
 import { normalize } from "@/lib/ingredient-match";
 import { isInPantry } from "@/lib/pantry";
+import {
+  categorySelectOptions,
+  pantryCategoryForDb,
+  resolvePantryCategory,
+  sortPantryCategoryKeys,
+} from "@/lib/categories";
 import { cap } from "@/lib/text";
 import { useOffline } from "@/contexts/OfflineContext";
 import { requireOnline } from "@/lib/offline/require-online";
@@ -45,8 +51,6 @@ export const Route = createFileRoute("/pantry")({
   component: PantryPage,
   head: () => ({ meta: [{ title: "Pantry — Family Kitchen" }] }),
 });
-
-const UNCATEGORIZED = "Uncategorized";
 
 function pantryItemShoppingName(
   item: Ingredient,
@@ -73,6 +77,10 @@ function PantryPage() {
   const { rows: canonicals } = useCanonicals();
   const { rows: categories } = useCategories();
   const categoryNames = useMemo(() => categories.map((c) => c.name), [categories]);
+  const categorySelectItems = useMemo(
+    () => categorySelectOptions(categoryNames),
+    [categoryNames],
+  );
   const canonicalById = useMemo(() => {
     const m = new Map<string, CanonicalLite>();
     canonicals.forEach((c) => m.set(c.id, c));
@@ -132,14 +140,20 @@ function PantryPage() {
         toast.info(`${cap(can.name)} is already in your pantry`);
         return;
       }
+      const dbCategory = pantryCategoryForDb(category);
       const { error } = await supabase
         .from("ingredients")
-        .insert({ name: can.name, canonical_id: can.id, amount: amount.trim() || null, category });
+        .insert({
+          name: can.name,
+          canonical_id: can.id,
+          amount: amount.trim() || null,
+          category: dbCategory,
+        });
       if (error) return toast.error(error.message);
-      if (category) {
+      if (dbCategory) {
         await supabase
           .from("canonical_ingredients")
-          .update({ last_category: category })
+          .update({ last_category: dbCategory })
           .eq("id", can.id);
       }
       setName("");
@@ -188,12 +202,21 @@ function PantryPage() {
     const map = new Map<string, Ingredient[]>();
     for (const cat of categoryNames) map.set(cat, []);
     for (const row of rows) {
-      const cat = row.category || UNCATEGORIZED;
+      const cat = resolvePantryCategory(row.category);
       if (!map.has(cat)) map.set(cat, []);
       map.get(cat)!.push(row);
     }
     return map;
   }, [rows, categoryNames]);
+
+  const sortedGroupKeys = useMemo(
+    () =>
+      sortPantryCategoryKeys(
+        Array.from(grouped.keys()).filter((k) => (grouped.get(k)?.length ?? 0) > 0),
+        categoryNames,
+      ),
+    [grouped, categoryNames],
+  );
 
   const searchMatches = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -305,7 +328,7 @@ function PantryPage() {
             <SelectValue placeholder={categoryNames.length ? "Category" : "No categories"} />
           </SelectTrigger>
           <SelectContent>
-            {categoryNames.map((c) => (
+            {categorySelectItems.map((c) => (
               <SelectItem key={c} value={c}>
                 {c}
               </SelectItem>
@@ -321,8 +344,8 @@ function PantryPage() {
         <EmptyPantry />
       ) : (
         <div className="space-y-2">
-          {Array.from(grouped.entries()).map(([cat, items]) => {
-            if (items.length === 0) return null;
+          {sortedGroupKeys.map((cat) => {
+            const items = grouped.get(cat)!;
             const isOpen = openCats.has(cat);
             return (
               <section
@@ -350,7 +373,7 @@ function PantryPage() {
                         key={i.id}
                         item={i}
                         displayName={displayName(i)}
-                        categoryNames={categoryNames}
+                        categorySelectItems={categorySelectItems}
                         onChanged={refresh}
                         onRemove={() => setPendingDelete(i)}
                         onSendToShopping={() => setPendingSendToShopping(i)}
@@ -431,7 +454,7 @@ function PantryPage() {
 function PantryRow({
   item,
   displayName,
-  categoryNames,
+  categorySelectItems,
   onChanged,
   onRemove,
   onSendToShopping,
@@ -441,7 +464,7 @@ function PantryRow({
 }: {
   item: Ingredient;
   displayName: string;
-  categoryNames: string[];
+  categorySelectItems: string[];
   onChanged: () => void;
   onRemove: () => void;
   onSendToShopping: () => void;
@@ -451,7 +474,7 @@ function PantryRow({
 }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(item.amount ?? "");
-  const itemCategory = item.category ?? UNCATEGORIZED;
+  const itemCategory = resolvePantryCategory(item.category);
 
   const save = async () => {
     if (!requireOnline()) {
@@ -477,16 +500,17 @@ function PantryRow({
 
   const updateCategory = async (cat: string) => {
     if (!requireOnline()) return;
+    const dbCategory = pantryCategoryForDb(cat);
     const { error } = await supabase
       .from("ingredients")
-      .update({ category: cat })
+      .update({ category: dbCategory })
       .eq("id", item.id);
     if (error) toast.error(error.message);
     else {
       if (item.canonical_id) {
         await supabase
           .from("canonical_ingredients")
-          .update({ last_category: cat })
+          .update({ last_category: dbCategory })
           .eq("id", item.canonical_id);
       }
       onChanged();
@@ -547,7 +571,7 @@ function PantryRow({
               <span className="sr-only">{itemCategory}</span>
             </SelectTrigger>
             <SelectContent>
-              {categoryNames.map((c) => (
+              {categorySelectItems.map((c) => (
                 <SelectItem key={c} value={c}>
                   {c}
                 </SelectItem>
