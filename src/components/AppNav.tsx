@@ -1,7 +1,5 @@
-import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { BookOpen, CalendarCheck, Carrot, LogOut, ShoppingBasket } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
+import { Link, useLocation } from "@tanstack/react-router";
+import { BookOpen, CalendarCheck, Carrot, ShoppingBasket } from "lucide-react";
 
 const links = [
   { to: "/", label: "Shopping", icon: ShoppingBasket },
@@ -12,10 +10,6 @@ const links = [
 
 export function AppNav() {
   const { pathname } = useLocation();
-  const navigate = useNavigate();
-  const { user, signOut } = useAuth();
-  const displayName =
-    user?.user_metadata?.full_name ?? user?.user_metadata?.name ?? user?.email ?? "Account";
 
   return (
     <header className="sticky top-0 z-40 h-14 shrink-0 border-b bg-background/80 backdrop-blur-md">
@@ -23,7 +17,7 @@ export function AppNav() {
         <Link to="/" className="flex shrink-0 items-center gap-2">
           <span className="font-semibold tracking-tight leading-4">Meal planner</span>
         </Link>
-        <nav className="flex min-w-0 items-center gap-1">
+        <nav className="flex min-w-0 flex-1 items-center justify-end gap-1">
           {links.map(({ to, label, icon: Icon }) => {
             const active =
               to === "/" ? pathname === "/" : pathname === to || pathname.startsWith(`${to}/`);
@@ -43,24 +37,6 @@ export function AppNav() {
             );
           })}
         </nav>
-        <div className="flex shrink-0 items-center gap-1">
-          <span className="hidden max-w-[10rem] truncate text-xs text-muted-foreground md:inline">
-            {displayName}
-          </span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 text-muted-foreground"
-            aria-label="Sign out"
-            title="Sign out"
-            onClick={() => {
-              void signOut().then(() => navigate({ href: "/login" }));
-            }}
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
-        </div>
       </div>
     </header>
   );
