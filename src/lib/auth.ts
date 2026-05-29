@@ -24,12 +24,15 @@ export function safeRedirectPath(path: string | undefined): string {
   return path;
 }
 
-/** App origin for OAuth callbacks — prefer VITE_APP_URL in production (set on Vercel). */
+/**
+ * App origin for OAuth callbacks.
+ * In the browser, always use the current origin so localhost works even when
+ * VITE_APP_URL is set to production (e.g. via Vercel env pull).
+ */
 export function getAppOrigin(): string {
-  const configured = import.meta.env.VITE_APP_URL?.trim().replace(/\/$/, "");
-  if (configured) return configured;
   if (typeof window !== "undefined") return window.location.origin;
-  return "";
+  const configured = import.meta.env.VITE_APP_URL?.trim().replace(/\/$/, "");
+  return configured ?? "";
 }
 
 export async function signInWithGoogle(nextPath = "/"): Promise<{ error: Error | null }> {
